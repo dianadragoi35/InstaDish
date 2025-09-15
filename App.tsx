@@ -6,8 +6,10 @@ import type { Recipe } from './types';
 
 const ChefHatIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2a5 5 0 0 1 5 5v1.5a1.5 1.5 0 0 0 3 0V7a8 8 0 1 0-16 0v1.5a1.5 1.5 0 0 0 3 0V7a5 5 0 0 1 5-5z" />
-    <path d="M4 14a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1z" />
+    <path d="M3 2v7c0 1.1.9 2 2 2h2a2 2 0 0 0 2-2V2"/>
+    <path d="M7 2v20"/>
+    <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3z"/>
+    <path d="M21 15v7"/>
   </svg>
 );
 
@@ -149,7 +151,7 @@ const App: React.FC = () => {
             </h1>
           </div>
           <p className="mt-3 text-lg text-gray-600 max-w-2xl mx-auto">
-            Turn your pantry into a culinary adventure! Tell us what you have, and we'll whip up a recipe for you.
+            Tell us what you have, and we'll whip up a recipe for you.
           </p>
         </header>
 
