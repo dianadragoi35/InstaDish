@@ -106,9 +106,9 @@ const LoadingSkeleton: React.FC = () => (
 
 const App: React.FC = () => {
   const [formData, setFormData] = useState({
-    ingredients: 'Frozen spinach, onion, garlic, milk, eggs',
-    cuisine: 'Romanian',
-    language: 'Romana',
+    ingredients: '',
+    cuisine: '',
+    language: 'English',
   });
   const [recipeData, setRecipeData] = useState<{ recipe: Recipe; imageUrl: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -141,26 +141,39 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-amber-50 text-gray-800 p-4 sm:p-6 lg:p-8">
-      <main className="max-w-7xl mx-auto">
-        <header className="text-center mb-10">
-          <div className="flex justify-center items-center gap-4">
-            <ChefHatIcon className="w-12 h-12 text-amber-600" />
-            <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold text-amber-900">
-              InstaDish Recipe Generator
-            </h1>
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
+      {/* Navigation Header */}
+      <nav className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-3">
+              <ChefHatIcon className="w-8 h-8 text-amber-600" />
+              <span className="font-serif text-2xl font-bold text-gray-900">InstaDish</span>
+            </div>
+            <div className="hidden md:flex items-center space-x-6 text-sm font-medium text-gray-700">
+              <span className="text-amber-600">AI Recipe Generator</span>
+            </div>
           </div>
-          <p className="mt-3 text-lg text-gray-600 max-w-2xl mx-auto">
-            Tell us what you have, and we'll whip up a recipe for you.
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Hero Section */}
+        <div className="text-center mb-6">
+          <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-3">
+            AI Recipe Generator
+          </h1>
+          <p className="text-base text-gray-600 max-w-2xl mx-auto leading-relaxed">
+            Turn your ingredients into delicious recipes. Just tell us what you have!
           </p>
-        </header>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           {/* Form Section */}
           <div className="lg:col-span-2">
-            <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg sticky top-8">
-              <h2 className="text-2xl font-bold font-serif text-amber-800 mb-6">Your Ingredients</h2>
-              <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg sticky top-8">
+              <h2 className="text-xl font-bold font-serif text-amber-800 mb-4">Your Ingredients</h2>
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label htmlFor="ingredients" className="block text-sm font-medium text-gray-700 mb-1">
                     What's in your kitchen?
@@ -168,7 +181,7 @@ const App: React.FC = () => {
                   <textarea
                     id="ingredients"
                     name="ingredients"
-                    rows={5}
+                    rows={4}
                     className="w-full p-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition"
                     placeholder="e.g., chicken, tomatoes, pasta, garlic"
                     value={formData.ingredients}
@@ -207,7 +220,7 @@ const App: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full flex items-center justify-center gap-3 bg-amber-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-amber-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all transform hover:scale-105"
+                  className="w-full flex items-center justify-center gap-3 bg-amber-600 text-white font-bold py-2.5 px-4 rounded-lg shadow-md hover:bg-amber-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all transform hover:scale-105"
                 >
                   <SparklesIcon className="w-5 h-5" />
                   {isLoading ? 'Generating...' : 'Generate Recipe'}
