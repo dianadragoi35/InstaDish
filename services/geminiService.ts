@@ -30,10 +30,9 @@ const recipeSchema = {
 };
 
 
-export const generateRecipe = async (ingredients: string, dietary: string, cuisine: string, language: string): Promise<{ recipe: Recipe; imageUrl: string }> => {
+export const generateRecipe = async (ingredients: string, cuisine: string, language: string): Promise<{ recipe: Recipe; imageUrl: string }> => {
     const prompt = `Generate a recipe in ${language || 'English'}.
     - Main ingredients available: ${ingredients}.
-    - Dietary restrictions: ${dietary || 'None'}.
     - Preferred cuisine: ${cuisine || 'Any'}.
 
     Provide a single, complete recipe with a name, short description, prep time, cook time, number of servings, a list of ingredients with quantities, and step-by-step instructions. The entire response must be in ${language || 'English'}.`;

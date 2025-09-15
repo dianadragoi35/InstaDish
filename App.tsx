@@ -104,10 +104,9 @@ const LoadingSkeleton: React.FC = () => (
 
 const App: React.FC = () => {
   const [formData, setFormData] = useState({
-    ingredients: '1 lb chicken breast, 1 head of broccoli, 1 cup of rice, soy sauce',
-    dietary: 'Gluten-Free',
-    cuisine: 'Asian',
-    language: 'English',
+    ingredients: 'Frozen spinach, onion, garlic, milk, eggs',
+    cuisine: 'Romanian',
+    language: 'Romana',
   });
   const [recipeData, setRecipeData] = useState<{ recipe: Recipe; imageUrl: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -130,7 +129,7 @@ const App: React.FC = () => {
     setRecipeData(null);
 
     try {
-      const generated = await generateRecipe(formData.ingredients, formData.dietary, formData.cuisine, formData.language);
+      const generated = await generateRecipe(formData.ingredients, formData.cuisine, formData.language);
       setRecipeData(generated);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unknown error occurred.");
@@ -146,7 +145,7 @@ const App: React.FC = () => {
           <div className="flex justify-center items-center gap-4">
             <ChefHatIcon className="w-12 h-12 text-amber-600" />
             <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold text-amber-900">
-              Gemini Recipe Generator
+              InstaDish Recipe Generator
             </h1>
           </div>
           <p className="mt-3 text-lg text-gray-600 max-w-2xl mx-auto">
@@ -174,20 +173,6 @@ const App: React.FC = () => {
                     onChange={handleInputChange}
                   />
                   <p className="text-xs text-gray-500 mt-1">Separate items with commas for best results.</p>
-                </div>
-                <div>
-                  <label htmlFor="dietary" className="block text-sm font-medium text-gray-700 mb-1">
-                    Dietary Preferences (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    id="dietary"
-                    name="dietary"
-                    className="w-full p-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition"
-                    placeholder="e.g., Vegan, Low-Carb"
-                    value={formData.dietary}
-                    onChange={handleInputChange}
-                  />
                 </div>
                 <div>
                   <label htmlFor="cuisine" className="block text-sm font-medium text-gray-700 mb-1">
