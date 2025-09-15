@@ -34,7 +34,7 @@ const UsersIcon: React.FC<{ className?: string }> = ({ className }) => (
 
 const RecipeCard: React.FC<{ recipe: Recipe; imageUrl: string }> = ({ recipe, imageUrl }) => (
   <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden animate-fade-in w-full">
-    <img src={imageUrl} alt={`An image of ${recipe.recipeName}`} className="w-full h-64 md:h-80 object-cover" />
+    {imageUrl && <img src={imageUrl} alt={`An image of ${recipe.recipeName}`} className="w-full h-64 md:h-80 object-cover" />}
     <div className="p-8">
       <h2 className="font-serif text-3xl md:text-4xl font-bold text-amber-900">{recipe.recipeName}</h2>
       <p className="mt-2 text-gray-600 italic">{recipe.description}</p>

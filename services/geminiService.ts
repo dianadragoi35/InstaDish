@@ -52,26 +52,33 @@ export const generateRecipe = async (ingredients: string, dietary: string, cuisi
         const jsonText = recipeResponse.text.trim();
         const recipeData = JSON.parse(jsonText) as Recipe;
 
-        // Step 2: Generate an image based on the recipe
-        const imagePrompt = `A high-quality, professional food photograph of "${recipeData.recipeName}". ${recipeData.description}. The dish should look appetizing and be presented beautifully on a plate, ready to be served.`;
-        
-        const imageResponse = await ai.models.generateImages({
-            model: 'imagen-4.0-generate-001',
-            prompt: imagePrompt,
-            config: {
-              numberOfImages: 1,
-              outputMimeType: 'image/jpeg',
-              aspectRatio: '4:3',
-            },
-        });
+        let imageUrl = '';
+        try {
+            // Step 2: Generate an image based on the recipe
+            const imagePrompt = `A high-quality, professional food photograph of "${recipeData.recipeName}". ${recipeData.description}. The dish should look appetizing and be presented beautifully on a plate, ready to be served.`;
+            
+            const imageResponse = await ai.models.generateImages({
+                model: 'imagen-4.0-generate-001',
+                prompt: imagePrompt,
+                config: {
+                  numberOfImages: 1,
+                  outputMimeType: 'image/jpeg',
+                  aspectRatio: '4:3',
+                },
+            });
 
-        const base64ImageBytes = imageResponse.generatedImages[0].image.imageBytes;
-        const imageUrl = `data:image/jpeg;base64,${base64ImageBytes}`;
+            const base64ImageBytes = imageResponse.generatedImages[0].image.imageBytes;
+            imageUrl = `data:image/jpeg;base64,${base64ImageBytes}`;
+        } catch (imageError) {
+            console.warn("Image generation failed. Proceeding without an image. Error:", imageError);
+            // Image generation failed, but we can still return the recipe.
+            // imageUrl is already initialized to '', so we just continue.
+        }
 
         return { recipe: recipeData, imageUrl };
 
     } catch (error) {
-        console.error("Error generating recipe or image:", error);
+        console.error("Error generating recipe:", error);
         throw new Error("Failed to generate recipe from the Gemini API. Please check your input or API key.");
     }
 };
