@@ -1,0 +1,5 @@
+{
+  "name": "Gemini Recipe Generator",
+  "description": "Generate delicious recipes based on the ingredients you have on hand. Powered by Google's Gemini API, it helps you discover new meals and reduce food waste.",
+  "requestFramePermissions": []
+}
