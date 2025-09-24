@@ -9,9 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/genai": "^1.19.0",
+    "@notionhq/client": "^5.1.0",
+    "dotenv": "^17.2.2",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "@google/genai": "^1.19.0"
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
