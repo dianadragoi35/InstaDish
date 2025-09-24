@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { generateRecipe } from './services/geminiService';
 import type { Recipe } from './types';
+import RecipeParser from './components/RecipeParser';
 
 // --- Icon Components (defined outside to prevent re-creation on re-renders) ---
 
@@ -28,6 +29,13 @@ const ClockIcon: React.FC<{ className?: string }> = ({ className }) => (
 const UsersIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+
+const PlusIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 );
 
@@ -105,6 +113,7 @@ const LoadingSkeleton: React.FC = () => (
 );
 
 const App: React.FC = () => {
+  const [currentView, setCurrentView] = useState<'generator' | 'parser'>('generator');
   const [formData, setFormData] = useState({
     ingredients: '',
     cuisine: '',
@@ -140,6 +149,35 @@ const App: React.FC = () => {
     }
   };
 
+  if (currentView === 'parser') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
+        {/* Navigation Header */}
+        <nav className="bg-white shadow-sm border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center space-x-3">
+                <ChefHatIcon className="w-8 h-8 text-amber-600" />
+                <span className="font-serif text-2xl font-bold text-gray-900">InstaDish</span>
+              </div>
+              <div className="flex items-center space-x-6">
+                <button
+                  onClick={() => setCurrentView('generator')}
+                  className="text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
+                >
+                  Recipe Generator
+                </button>
+                <span className="text-sm font-medium text-amber-600">Recipe Parser</span>
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        <RecipeParser onClose={() => setCurrentView('generator')} />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
       {/* Navigation Header */}
@@ -150,8 +188,15 @@ const App: React.FC = () => {
               <ChefHatIcon className="w-8 h-8 text-amber-600" />
               <span className="font-serif text-2xl font-bold text-gray-900">InstaDish</span>
             </div>
-            <div className="hidden md:flex items-center space-x-6 text-sm font-medium text-gray-700">
-              <span className="text-amber-600">AI Recipe Generator</span>
+            <div className="flex items-center space-x-6">
+              <span className="text-sm font-medium text-amber-600">Recipe Generator</span>
+              <button
+                onClick={() => setCurrentView('parser')}
+                className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
+              >
+                <PlusIcon className="w-4 h-4" />
+                Add Recipe
+              </button>
             </div>
           </div>
         </div>
