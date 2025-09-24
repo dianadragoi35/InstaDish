@@ -1,10 +1,11 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable is not set");
+// Use client-side environment variable since this runs in the browser
+if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
+    throw new Error("NEXT_PUBLIC_GEMINI_API_KEY environment variable is not set");
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
 
 export interface ParsedRecipe {
     recipeName: string;

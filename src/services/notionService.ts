@@ -1,4 +1,4 @@
-import { Client } from "@notionhq/client";
+// Notion REST API service using fetch instead of SDK for browser compatibility
 
 if (!import.meta.env.VITE_NOTION_API_KEY) {
   throw new Error("VITE_NOTION_API_KEY environment variable is not set");
@@ -12,12 +12,32 @@ if (!import.meta.env.VITE_INGREDIENTS_DATABASE_ID) {
   throw new Error("VITE_INGREDIENTS_DATABASE_ID environment variable is not set");
 }
 
-const notion = new Client({
-  auth: import.meta.env.VITE_NOTION_API_KEY,
-});
-
+const NOTION_API_KEY = import.meta.env.VITE_NOTION_API_KEY;
 const RECIPES_DATABASE_ID = import.meta.env.VITE_RECIPES_DATABASE_ID;
 const INGREDIENTS_DATABASE_ID = import.meta.env.VITE_INGREDIENTS_DATABASE_ID;
+
+const NOTION_API_BASE = 'https://api.notion.com/v1';
+const NOTION_VERSION = '2022-06-28';
+
+// Helper function for Notion API calls
+async function notionFetch(endpoint: string, options: RequestInit = {}) {
+  const response = await fetch(`${NOTION_API_BASE}${endpoint}`, {
+    headers: {
+      'Authorization': `Bearer ${NOTION_API_KEY}`,
+      'Notion-Version': NOTION_VERSION,
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+    ...options,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Notion API error ${response.status}: ${errorText}`);
+  }
+
+  return response.json();
+}
 
 export interface NotionIngredient {
   id: string;
@@ -47,8 +67,8 @@ export interface CreateRecipeData {
 export const notionService = {
   async testConnection(): Promise<boolean> {
     try {
-      await notion.databases.retrieve({ database_id: RECIPES_DATABASE_ID });
-      await notion.databases.retrieve({ database_id: INGREDIENTS_DATABASE_ID });
+      await notionFetch(`/databases/${RECIPES_DATABASE_ID}`);
+      await notionFetch(`/databases/${INGREDIENTS_DATABASE_ID}`);
       return true;
     } catch (error) {
       console.error("Notion connection test failed:", error);
@@ -58,33 +78,40 @@ export const notionService = {
 
   async findOrCreateIngredient(name: string): Promise<string> {
     try {
-      const searchResponse = await (notion.databases as any).query({
-        database_id: INGREDIENTS_DATABASE_ID,
-        filter: {
-          property: "Ingredient Name",
-          title: {
-            equals: name.trim(),
+      // Search for existing ingredient
+      const searchResponse = await notionFetch(`/databases/${INGREDIENTS_DATABASE_ID}/query`, {
+        method: 'POST',
+        body: JSON.stringify({
+          filter: {
+            property: "Ingredient Name",
+            title: {
+              equals: name.trim(),
+            },
           },
-        },
+        }),
       });
 
       if (searchResponse.results.length > 0) {
         return searchResponse.results[0].id;
       }
 
-      const createResponse = await notion.pages.create({
-        parent: { database_id: INGREDIENTS_DATABASE_ID },
-        properties: {
-          "Ingredient Name": {
-            title: [
-              {
-                text: {
-                  content: name.trim(),
+      // Create new ingredient
+      const createResponse = await notionFetch('/pages', {
+        method: 'POST',
+        body: JSON.stringify({
+          parent: { database_id: INGREDIENTS_DATABASE_ID },
+          properties: {
+            "Ingredient Name": {
+              title: [
+                {
+                  text: {
+                    content: name.trim(),
+                  },
                 },
-              },
-            ],
+              ],
+            },
           },
-        },
+        }),
       });
 
       return createResponse.id;
@@ -100,58 +127,61 @@ export const notionService = {
         recipeData.ingredientNames.map((name) => this.findOrCreateIngredient(name))
       );
 
-      const createResponse = await notion.pages.create({
-        parent: { database_id: RECIPES_DATABASE_ID },
-        properties: {
-          "Recipe Name": {
-            title: [
-              {
-                text: {
-                  content: recipeData.recipeName,
+      const createResponse = await notionFetch('/pages', {
+        method: 'POST',
+        body: JSON.stringify({
+          parent: { database_id: RECIPES_DATABASE_ID },
+          properties: {
+            "Recipe Name": {
+              title: [
+                {
+                  text: {
+                    content: recipeData.recipeName,
+                  },
                 },
-              },
-            ],
-          },
-          "Instructions": {
-            rich_text: [
-              {
-                text: {
-                  content: recipeData.instructions,
+              ],
+            },
+            "Instructions": {
+              rich_text: [
+                {
+                  text: {
+                    content: recipeData.instructions,
+                  },
                 },
-              },
-            ],
-          },
-          "Prep Time": {
-            rich_text: [
-              {
-                text: {
-                  content: recipeData.prepTime,
+              ],
+            },
+            "Prep Time": {
+              rich_text: [
+                {
+                  text: {
+                    content: recipeData.prepTime,
+                  },
                 },
-              },
-            ],
-          },
-          "Cook Time": {
-            rich_text: [
-              {
-                text: {
-                  content: recipeData.cookTime,
+              ],
+            },
+            "Cook Time": {
+              rich_text: [
+                {
+                  text: {
+                    content: recipeData.cookTime,
+                  },
                 },
-              },
-            ],
-          },
-          "Servings": {
-            rich_text: [
-              {
-                text: {
-                  content: recipeData.servings,
+              ],
+            },
+            "Servings": {
+              rich_text: [
+                {
+                  text: {
+                    content: recipeData.servings,
+                  },
                 },
-              },
-            ],
+              ],
+            },
+            "Ingredients": {
+              relation: ingredientIds.map((id) => ({ id })),
+            },
           },
-          "Ingredients": {
-            relation: ingredientIds.map((id) => ({ id })),
-          },
-        },
+        }),
       });
 
       return createResponse.id;
@@ -163,9 +193,9 @@ export const notionService = {
 
   async getRecipe(recipeId: string): Promise<NotionRecipe | null> {
     try {
-      const response = await notion.pages.retrieve({ page_id: recipeId });
+      const response = await notionFetch(`/pages/${recipeId}`);
 
-      if (!("properties" in response)) {
+      if (!response.properties) {
         return null;
       }
 
@@ -195,14 +225,14 @@ export const notionService = {
 
   async getAllRecipes(): Promise<NotionRecipe[]> {
     try {
-      const response = await (notion.databases as any).query({
-        database_id: RECIPES_DATABASE_ID,
+      const response = await notionFetch(`/databases/${RECIPES_DATABASE_ID}/query`, {
+        method: 'POST',
       });
 
       const recipes: NotionRecipe[] = [];
 
       for (const page of response.results) {
-        if ("properties" in page) {
+        if (page.properties) {
           const properties = page.properties;
 
           const recipeName = this.extractTitle(properties["Recipe Name"]);
@@ -233,9 +263,9 @@ export const notionService = {
 
   async getIngredient(ingredientId: string): Promise<NotionIngredient | null> {
     try {
-      const response = await notion.pages.retrieve({ page_id: ingredientId });
+      const response = await notionFetch(`/pages/${ingredientId}`);
 
-      if (!("properties" in response)) {
+      if (!response.properties) {
         return null;
       }
 

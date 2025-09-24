@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { parseRecipeText, validateParsedRecipe, type ParsedRecipe, type ParsingResult } from '../services/aiParsingService';
-import { notionService, type CreateRecipeData } from '../services/notionService';
+import { notionService, type CreateRecipeData } from '../services/notionService.client';
 
 const ClipboardIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -114,13 +114,10 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
       await notionService.createRecipe(createRecipeData);
       setSaveSuccess(true);
 
-      // Clear form after successful save
+      // Auto-hide success message after 5 seconds but keep form data
       setTimeout(() => {
-        setRecipeText('');
-        setParsedRecipe(null);
         setSaveSuccess(false);
-        setValidationErrors([]);
-      }, 3000);
+      }, 5000);
 
     } catch (error) {
       setSavingError(error instanceof Error ? error.message : 'Failed to save recipe to Notion');
@@ -203,7 +200,7 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
             {saveSuccess && (
               <div className="p-4 bg-green-100 border border-green-200 rounded-lg text-green-700 flex items-center gap-2">
                 <CheckIcon className="w-5 h-5" />
-                <span><strong>Success!</strong> Recipe saved to your Notion database.</span>
+                <span><strong>Success!</strong> Recipe saved to your Notion database. You can now add another recipe or clear the form.</span>
               </div>
             )}
           </div>
