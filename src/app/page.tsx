@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { generateRecipe } from '../services/geminiService';
 import type { Recipe } from '../types';
 import RecipeParser from '../components/RecipeParser';
+import MyRecipes from '../components/MyRecipes';
 
 // --- Icon Components (defined outside to prevent re-creation on re-renders) ---
 
@@ -115,7 +116,7 @@ const LoadingSkeleton: React.FC = () => (
 );
 
 const HomePage: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'generator' | 'parser'>('generator');
+  const [currentView, setCurrentView] = useState<'generator' | 'parser' | 'myrecipes'>('generator');
   const [formData, setFormData] = useState({
     ingredients: '',
     cuisine: '',
@@ -170,12 +171,53 @@ const HomePage: React.FC = () => {
                   Recipe Generator
                 </button>
                 <span className="text-sm font-medium text-amber-600">Recipe Parser</span>
+                <button
+                  onClick={() => setCurrentView('myrecipes')}
+                  className="text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
+                >
+                  My Recipes
+                </button>
               </div>
             </div>
           </div>
         </nav>
 
         <RecipeParser onClose={() => setCurrentView('generator')} />
+      </div>
+    );
+  }
+
+  if (currentView === 'myrecipes') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
+        {/* Navigation Header */}
+        <nav className="bg-white shadow-sm border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center space-x-3">
+                <ChefHatIcon className="w-8 h-8 text-amber-600" />
+                <span className="font-serif text-2xl font-bold text-gray-900">InstaDish</span>
+              </div>
+              <div className="flex items-center space-x-6">
+                <button
+                  onClick={() => setCurrentView('generator')}
+                  className="text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
+                >
+                  Recipe Generator
+                </button>
+                <button
+                  onClick={() => setCurrentView('parser')}
+                  className="text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
+                >
+                  Add Recipe
+                </button>
+                <span className="text-sm font-medium text-amber-600">My Recipes</span>
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        <MyRecipes />
       </div>
     );
   }
@@ -198,6 +240,12 @@ const HomePage: React.FC = () => {
               >
                 <PlusIcon className="w-4 h-4" />
                 Add Recipe
+              </button>
+              <button
+                onClick={() => setCurrentView('myrecipes')}
+                className="text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
+              >
+                My Recipes
               </button>
             </div>
           </div>
