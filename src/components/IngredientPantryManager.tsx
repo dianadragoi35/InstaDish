@@ -91,7 +91,6 @@ const IngredientItem: React.FC<IngredientItemProps> = ({ ingredient, onUpdate, i
             >
               <PackageIcon className="w-3 h-3" />
               <span>{ingredient.inPantry ? 'In Pantry' : 'Add to Pantry'}</span>
-              {ingredient.inPantry && <CheckIcon className="w-3 h-3" />}
             </button>
           </div>
 
@@ -107,8 +106,7 @@ const IngredientItem: React.FC<IngredientItemProps> = ({ ingredient, onUpdate, i
               }`}
             >
               <ShoppingCartIcon className="w-3 h-3" />
-              <span>{ingredient.needToBuy ? 'Need to Buy' : 'Add to List'}</span>
-              {ingredient.needToBuy && <CheckIcon className="w-3 h-3" />}
+              <span>{ingredient.needToBuy ? 'Added to List' : 'Add to List'}</span>
             </button>
           </div>
         </div>

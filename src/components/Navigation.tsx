@@ -67,6 +67,7 @@ interface NavigationProps {
 }
 
 const Navigation: React.FC<NavigationProps> = ({ currentView, setCurrentView }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
   const navItems = [
     { id: 'generator' as ViewType, label: 'Generate Recipe', icon: SparklesIcon },
     { id: 'parser' as ViewType, label: 'Add Recipe', icon: PlusIcon },
@@ -84,7 +85,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setCurrentView }) 
             <ChefHatIcon className="w-8 h-8 text-amber-600" />
             <span className="font-serif text-2xl font-bold text-gray-900">InstaDish</span>
           </div>
-          <div className="flex items-center space-x-6">
+          <div className="hidden md:flex items-center space-x-6">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentView === item.id;
@@ -113,7 +114,43 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setCurrentView }) 
               );
             })}
           </div>
+
+          {/* Mobile menu button */}
+          <button
+            className="md:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-amber-600 focus:outline-none"
+            aria-label="Open menu"
+            aria-expanded={isOpen}
+            onClick={() => setIsOpen((o) => !o)}
+          >
+            <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              {isOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
         </div>
+
+        {/* Mobile menu panel */}
+        {isOpen && (
+          <div className="md:hidden pb-4 grid grid-cols-2 gap-3">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = currentView === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => { setCurrentView(item.id); setIsOpen(false); }}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${isActive ? 'text-amber-700 border-amber-200 bg-amber-50' : 'text-gray-700 border-gray-200 bg-white'} hover:text-amber-700 hover:border-amber-300`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="truncate">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </nav>
   );
