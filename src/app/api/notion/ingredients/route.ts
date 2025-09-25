@@ -7,6 +7,47 @@ export const dynamic = 'force-dynamic';
 const NOTION_API_KEY = process.env.NOTION_API_KEY!;
 const INGREDIENTS_DATABASE_ID = process.env.INGREDIENTS_DATABASE_ID!;
 
+// GET - Fetch all ingredients
+export async function GET() {
+  try {
+    const response = await fetch(`https://api.notion.com/v1/databases/${INGREDIENTS_DATABASE_ID}/query`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${NOTION_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Notion-Version': '2022-06-28',
+      },
+      body: JSON.stringify({
+        sorts: [
+          {
+            property: 'Ingredient Name',
+            direction: 'ascending',
+          },
+        ],
+      }),
+    });
+
+    const data = await response.json();
+
+    const ingredients = data.results.map((page: any) => ({
+      id: page.id,
+      name: page.properties['Ingredient Name']?.title?.[0]?.text?.content || '',
+      inPantry: page.properties['In Pantry']?.checkbox || false,
+      needToBuy: page.properties['Need to Buy']?.checkbox || false,
+      lastUpdated: page.properties['Last Updated']?.date?.start || null,
+      recipeIds: page.properties['Recipes']?.relation?.map((rel: any) => rel.id) || [],
+    }));
+
+    return NextResponse.json({ ingredients });
+  } catch (error) {
+    console.error('Error fetching ingredients:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch ingredients' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { name } = await request.json();

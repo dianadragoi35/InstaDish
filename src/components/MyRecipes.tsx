@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import AddToGroceryButton from './AddToGroceryButton';
 
 interface NotionRecipe {
   id: string;
@@ -518,27 +519,35 @@ const MyRecipes: React.FC = () => {
                     </p>
                   </div>
 
-                  <div className="flex justify-between items-center">
-                    <button
-                      onClick={() => setSelectedRecipe(recipe)}
-                      className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors"
-                    >
-                      <EyeIcon className="w-4 h-4" />
-                      View
-                    </button>
-                    <div className="flex gap-2">
+                  <div className="space-y-3">
+                    <AddToGroceryButton
+                      ingredientIds={recipe.ingredientIds}
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                    />
+                    <div className="flex justify-between items-center">
                       <button
-                        onClick={() => handleEdit(recipe)}
-                        className="p-2 text-gray-600 hover:text-amber-600 transition-colors"
+                        onClick={() => setSelectedRecipe(recipe)}
+                        className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors"
                       >
-                        <EditIcon className="w-4 h-4" />
+                        <EyeIcon className="w-4 h-4" />
+                        View
                       </button>
-                      <button
-                        onClick={() => handleDelete(recipe)}
-                        className="p-2 text-gray-600 hover:text-red-600 transition-colors"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(recipe)}
+                          className="p-2 text-gray-600 hover:text-amber-600 transition-colors"
+                        >
+                          <EditIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(recipe)}
+                          className="p-2 text-gray-600 hover:text-red-600 transition-colors"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
