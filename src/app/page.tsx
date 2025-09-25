@@ -278,10 +278,10 @@ const HomePage: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
           {/* Form Section */}
           <div className="lg:col-span-2">
-            <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg sticky top-8">
+            <div className="bg-white/80 backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow-lg lg:sticky lg:top-8">
               <h2 className="text-xl font-bold font-serif text-amber-800 mb-4">Your Ingredients</h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
@@ -292,7 +292,7 @@ const HomePage: React.FC = () => {
                     id="ingredients"
                     name="ingredients"
                     rows={4}
-                    className="w-full p-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition"
+                    className="w-full p-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition text-sm"
                     placeholder="e.g., chicken, tomatoes, pasta, garlic"
                     value={formData.ingredients}
                     onChange={handleInputChange}
@@ -307,7 +307,7 @@ const HomePage: React.FC = () => {
                     type="text"
                     id="cuisine"
                     name="cuisine"
-                    className="w-full p-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition"
+                    className="w-full p-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition text-sm"
                     placeholder="e.g., Italian, Mexican"
                     value={formData.cuisine}
                     onChange={handleInputChange}
@@ -321,7 +321,7 @@ const HomePage: React.FC = () => {
                     type="text"
                     id="language"
                     name="language"
-                    className="w-full p-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition"
+                    className="w-full p-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition text-sm"
                     placeholder="e.g., English, Spanish, French"
                     value={formData.language}
                     onChange={handleInputChange}
@@ -330,7 +330,7 @@ const HomePage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full flex items-center justify-center gap-3 bg-amber-600 text-white font-bold py-2.5 px-4 rounded-lg shadow-md hover:bg-amber-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all transform hover:scale-105"
+                  className="w-full flex items-center justify-center gap-3 bg-amber-600 text-white font-bold py-2.5 px-4 rounded-lg shadow-md hover:bg-amber-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all active:scale-[0.99]"
                 >
                   <SparklesIcon className="w-5 h-5" />
                   {isLoading ? 'Generating...' : 'Generate Recipe'}
@@ -348,7 +348,7 @@ const HomePage: React.FC = () => {
               {!isLoading && !error && !recipeData && (
                 <div className="text-center text-gray-500">
                   <ChefHatIcon className="w-24 h-24 mx-auto text-gray-300" />
-                  <p className="mt-4 text-xl">Your recipe will appear here!</p>
+                  <p className="mt-4 text-lg sm:text-xl">Your recipe will appear here!</p>
                   <p>Fill out the form and let the magic happen.</p>
                 </div>
               )}
