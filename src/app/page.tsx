@@ -6,10 +6,12 @@ import type { Recipe } from '../types';
 import RecipeParser from '../components/RecipeParser';
 import MyRecipes from '../components/MyRecipes';
 import GroceryList from '../components/GroceryList';
+import ShoppingList from '../components/ShoppingList';
 import IngredientPantryManager from '../components/IngredientPantryManager';
 import AddToGroceryButton from '../components/AddToGroceryButton';
+import Navigation from '../components/Navigation';
 
-// --- Icon Components (defined outside to prevent re-creation on re-renders) ---
+// --- Icon Components used in the main page ---
 
 const ChefHatIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -42,23 +44,6 @@ const PlusIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="12" y1="5" x2="12" y2="19" />
     <line x1="5" y1="12" x2="19" y2="12" />
-  </svg>
-);
-
-const ShoppingCartIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="9" cy="21" r="1"></circle>
-    <circle cx="20" cy="21" r="1"></circle>
-    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-  </svg>
-);
-
-const PackageIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"></line>
-    <path d="M21 16V8a2 2 0 0 0-1-1.73L12 2 4 6.27A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73L12 22l8-4.27A2 2 0 0 0 21 16z"></path>
-    <polyline points="3.27,6.96 12,12.01 20.73,6.96"></polyline>
-    <line x1="12" y1="22.08" x2="12" y2="12"></line>
   </svg>
 );
 
@@ -197,7 +182,7 @@ const LoadingSkeleton: React.FC = () => (
 );
 
 const HomePage: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'generator' | 'parser' | 'myrecipes' | 'grocerylist' | 'pantry'>('generator');
+  const [currentView, setCurrentView] = useState<'generator' | 'parser' | 'myrecipes' | 'customlists' | 'shoppinglist' | 'pantry'>('generator');
   const [formData, setFormData] = useState({
     ingredients: '',
     cuisine: '',
@@ -236,47 +221,7 @@ const HomePage: React.FC = () => {
   if (currentView === 'parser') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
-        {/* Navigation Header */}
-        <nav className="bg-white shadow-sm border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center space-x-3">
-                <ChefHatIcon className="w-8 h-8 text-amber-600" />
-                <span className="font-serif text-2xl font-bold text-gray-900">InstaDish</span>
-              </div>
-              <div className="flex items-center space-x-6">
-                <button
-                  onClick={() => setCurrentView('generator')}
-                  className="text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-                >
-                  Recipe Generator
-                </button>
-                <span className="text-sm font-medium text-amber-600">Add Recipe</span>
-                <button
-                  onClick={() => setCurrentView('myrecipes')}
-                  className="text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-                >
-                  My Recipes
-                </button>
-                <button
-                  onClick={() => setCurrentView('grocerylist')}
-                  className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-                >
-                  <ShoppingCartIcon className="w-4 h-4" />
-                  Grocery Lists
-                </button>
-                <button
-                  onClick={() => setCurrentView('pantry')}
-                  className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-                >
-                  <PackageIcon className="w-4 h-4" />
-                  Pantry
-                </button>
-              </div>
-            </div>
-          </div>
-        </nav>
-
+        <Navigation currentView={currentView} setCurrentView={setCurrentView} />
         <RecipeParser onClose={() => setCurrentView('generator')} />
       </div>
     );
@@ -285,99 +230,26 @@ const HomePage: React.FC = () => {
   if (currentView === 'myrecipes') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
-        {/* Navigation Header */}
-        <nav className="bg-white shadow-sm border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center space-x-3">
-                <ChefHatIcon className="w-8 h-8 text-amber-600" />
-                <span className="font-serif text-2xl font-bold text-gray-900">InstaDish</span>
-              </div>
-              <div className="flex items-center space-x-6">
-                <button
-                  onClick={() => setCurrentView('generator')}
-                  className="text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-                >
-                  Recipe Generator
-                </button>
-                <button
-                  onClick={() => setCurrentView('parser')}
-                  className="text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-                >
-                  Add Recipe
-                </button>
-                <span className="text-sm font-medium text-amber-600">My Recipes</span>
-                <button
-                  onClick={() => setCurrentView('grocerylist')}
-                  className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-                >
-                  <ShoppingCartIcon className="w-4 h-4" />
-                  Grocery Lists
-                </button>
-                <button
-                  onClick={() => setCurrentView('pantry')}
-                  className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-                >
-                  <PackageIcon className="w-4 h-4" />
-                  Pantry
-                </button>
-              </div>
-            </div>
-          </div>
-        </nav>
-
+        <Navigation currentView={currentView} setCurrentView={setCurrentView} />
         <MyRecipes />
       </div>
     );
   }
 
-  if (currentView === 'grocerylist') {
+  if (currentView === 'customlists') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
-        {/* Navigation Header */}
-        <nav className="bg-white shadow-sm border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center space-x-3">
-                <ChefHatIcon className="w-8 h-8 text-amber-600" />
-                <span className="font-serif text-2xl font-bold text-gray-900">InstaDish</span>
-              </div>
-              <div className="flex items-center space-x-6">
-                <button
-                  onClick={() => setCurrentView('generator')}
-                  className="text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-                >
-                  Recipe Generator
-                </button>
-                <button
-                  onClick={() => setCurrentView('parser')}
-                  className="text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-                >
-                  Add Recipe
-                </button>
-                <button
-                  onClick={() => setCurrentView('myrecipes')}
-                  className="text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-                >
-                  My Recipes
-                </button>
-                <span className="flex items-center gap-1 text-sm font-medium text-amber-600">
-                  <ShoppingCartIcon className="w-4 h-4" />
-                  Grocery Lists
-                </span>
-                <button
-                  onClick={() => setCurrentView('pantry')}
-                  className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-                >
-                  <PackageIcon className="w-4 h-4" />
-                  Pantry
-                </button>
-              </div>
-            </div>
-          </div>
-        </nav>
-
+        <Navigation currentView={currentView} setCurrentView={setCurrentView} />
         <GroceryList />
+      </div>
+    );
+  }
+
+  if (currentView === 'shoppinglist') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
+        <Navigation currentView={currentView} setCurrentView={setCurrentView} />
+        <ShoppingList />
       </div>
     );
   }
@@ -385,49 +257,7 @@ const HomePage: React.FC = () => {
   if (currentView === 'pantry') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
-        {/* Navigation Header */}
-        <nav className="bg-white shadow-sm border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center space-x-3">
-                <ChefHatIcon className="w-8 h-8 text-amber-600" />
-                <span className="font-serif text-2xl font-bold text-gray-900">InstaDish</span>
-              </div>
-              <div className="flex items-center space-x-6">
-                <button
-                  onClick={() => setCurrentView('generator')}
-                  className="text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-                >
-                  Recipe Generator
-                </button>
-                <button
-                  onClick={() => setCurrentView('parser')}
-                  className="text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-                >
-                  Add Recipe
-                </button>
-                <button
-                  onClick={() => setCurrentView('myrecipes')}
-                  className="text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-                >
-                  My Recipes
-                </button>
-                <button
-                  onClick={() => setCurrentView('grocerylist')}
-                  className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-                >
-                  <ShoppingCartIcon className="w-4 h-4" />
-                  Grocery Lists
-                </button>
-                <span className="flex items-center gap-1 text-sm font-medium text-amber-600">
-                  <PackageIcon className="w-4 h-4" />
-                  Pantry
-                </span>
-              </div>
-            </div>
-          </div>
-        </nav>
-
+        <Navigation currentView={currentView} setCurrentView={setCurrentView} />
         <IngredientPantryManager />
       </div>
     );
@@ -435,46 +265,7 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
-      {/* Navigation Header */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <ChefHatIcon className="w-8 h-8 text-amber-600" />
-              <span className="font-serif text-2xl font-bold text-gray-900">InstaDish</span>
-            </div>
-            <div className="flex items-center space-x-6">
-              <span className="text-sm font-medium text-amber-600">Recipe Generator</span>
-              <button
-                onClick={() => setCurrentView('parser')}
-                className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-              >
-                Add Recipe
-              </button>
-              <button
-                onClick={() => setCurrentView('myrecipes')}
-                className="text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-              >
-                My Recipes
-              </button>
-              <button
-                onClick={() => setCurrentView('grocerylist')}
-                className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-              >
-                <ShoppingCartIcon className="w-4 h-4" />
-                Grocery Lists
-              </button>
-              <button
-                onClick={() => setCurrentView('pantry')}
-                className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors"
-              >
-                <PackageIcon className="w-4 h-4" />
-                Pantry
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navigation currentView={currentView} setCurrentView={setCurrentView} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Hero Section */}
