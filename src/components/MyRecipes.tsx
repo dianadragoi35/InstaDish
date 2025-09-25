@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import AddToShoppingListButton from './AddToShoppingListButton';
 import AddToGroceryButton from './AddToGroceryButton';
 
 interface NotionRecipe {
@@ -520,12 +521,21 @@ const MyRecipes: React.FC = () => {
                   </div>
 
                   <div className="space-y-3">
-                    <AddToGroceryButton
-                      ingredientIds={recipe.ingredientIds}
-                      size="sm"
-                      variant="outline"
-                      className="w-full"
-                    />
+                    <div className="flex gap-2">
+                      <AddToShoppingListButton
+                        ingredientIds={recipe.ingredientIds}
+                        size="sm"
+                        variant="primary"
+                        className="flex-1"
+                        showText={false}
+                      />
+                      <AddToGroceryButton
+                        ingredientIds={recipe.ingredientIds}
+                        size="sm"
+                        variant="outline"
+                        className="flex-1"
+                      />
+                    </div>
                     <div className="flex justify-between items-center">
                       <button
                         onClick={() => setSelectedRecipe(recipe)}

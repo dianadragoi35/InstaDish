@@ -60,7 +60,7 @@ const GroceryListSelectModal: React.FC<GroceryListSelectModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
         <div className="p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Add to Grocery List</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Add to Custom List</h2>
 
           {isLoading ? (
             <div className="py-8 text-center">
@@ -70,7 +70,7 @@ const GroceryListSelectModal: React.FC<GroceryListSelectModalProps> = ({
           ) : activeLists.length === 0 ? (
             <div className="text-center py-8">
               <ShoppingCartIcon className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-600 mb-4">No active grocery lists found.</p>
+              <p className="text-gray-600 mb-4">No active custom lists found.</p>
               <button
                 onClick={onCreateNew}
                 className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors"
@@ -150,7 +150,7 @@ const CreateQuickListModal: React.FC<CreateQuickListModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
         <div className="p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Create New Grocery List</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Create New Custom List</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -163,7 +163,7 @@ const CreateQuickListModal: React.FC<CreateQuickListModalProps> = ({
                 value={listName}
                 onChange={(e) => setListName(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                placeholder="e.g., Weekly Shopping"
+                placeholder="e.g., Dinner Party, Italian Night"
                 required
                 autoFocus
               />
@@ -346,7 +346,7 @@ const AddToGroceryButton: React.FC<AddToGroceryButtonProps> = ({
               ? 'Added!'
               : isAdding
               ? 'Adding...'
-              : `Add to Grocery List${ingredientNames.length > 0 ? ` (${ingredientNames.length})` : ''}`
+              : `Add to Custom List${ingredientNames.length > 0 ? ` (${ingredientNames.length})` : ''}`
             }
           </span>
         )}
