@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { parseRecipeText, validateParsedRecipe, type ParsedRecipe, type ParsingResult } from '../services/aiParsingService';
 import { notionService, type CreateRecipeData } from '../services/notionService.client';
 import { extractRecipeFromYouTubeVideo, validateRecipeContent, type YoutubeRecipeResult } from '../services/youtubeRecipeService';
+import { extractRecipeFromWebsite, isValidWebsiteUrl, type WebsiteRecipeResult } from '../services/websiteRecipeService';
 
 const ClipboardIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -65,18 +66,21 @@ interface RecipeParserProps {
 }
 
 const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
-  const [activeTab, setActiveTab] = useState<'text' | 'youtube'>('text');
+  const [activeTab, setActiveTab] = useState<'text' | 'youtube' | 'website'>('text');
   const [recipeText, setRecipeText] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
   const [parsedRecipe, setParsedRecipe] = useState<ParsedRecipe | null>(null);
   const [isParsingText, setIsParsingText] = useState(false);
   const [isParsingYoutube, setIsParsingYoutube] = useState(false);
+  const [isParsingWebsite, setIsParsingWebsite] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [savingError, setSavingError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [transcriptPreview, setTranscriptPreview] = useState<string>('');
+  const [contentPreview, setContentPreview] = useState<string>('');
 
   const handleParseRecipe = async () => {
     if (!recipeText.trim()) {
@@ -120,6 +124,7 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
     setValidationErrors([]);
     setSaveSuccess(false);
     setTranscriptPreview('');
+    setContentPreview('');
 
     try {
       const result: YoutubeRecipeResult = await extractRecipeFromYouTubeVideo(youtubeUrl);
@@ -136,6 +141,43 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
       setParsingError(error instanceof Error ? error.message : 'An unknown error occurred while parsing YouTube video');
     } finally {
       setIsParsingYoutube(false);
+    }
+  };
+
+  const handleParseWebsite = async () => {
+    if (!websiteUrl.trim()) {
+      setParsingError('Please enter a website URL.');
+      return;
+    }
+
+    if (!isValidWebsiteUrl(websiteUrl)) {
+      setParsingError('Please enter a valid website URL (must start with http:// or https://)');
+      return;
+    }
+
+    setIsParsingWebsite(true);
+    setParsingError(null);
+    setParsedRecipe(null);
+    setValidationErrors([]);
+    setSaveSuccess(false);
+    setTranscriptPreview('');
+    setContentPreview('');
+
+    try {
+      const result: WebsiteRecipeResult = await extractRecipeFromWebsite(websiteUrl);
+
+      if (result.success && result.recipe) {
+        const validation = validateParsedRecipe(result.recipe);
+        setValidationErrors(validation.errors);
+        setParsedRecipe(result.recipe);
+        setContentPreview(result.content || '');
+      } else {
+        setParsingError(result.error || 'Failed to extract recipe from website');
+      }
+    } catch (error) {
+      setParsingError(error instanceof Error ? error.message : 'An unknown error occurred while parsing website');
+    } finally {
+      setIsParsingWebsite(false);
     }
   };
 
@@ -179,12 +221,14 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
   const handleClear = () => {
     setRecipeText('');
     setYoutubeUrl('');
+    setWebsiteUrl('');
     setParsedRecipe(null);
     setParsingError(null);
     setSavingError(null);
     setSaveSuccess(false);
     setValidationErrors([]);
     setTranscriptPreview('');
+    setContentPreview('');
   };
 
   return (
@@ -200,7 +244,7 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
               <XIcon className="w-6 h-6" />
             </button>
           </div>
-          <p className="mt-2 text-gray-600">Parse recipes from text or YouTube videos and save to your Notion database.</p>
+          <p className="mt-2 text-gray-600">Parse recipes from text, YouTube videos, or website URLs and save to your Notion database.</p>
 
           {/* Tabs */}
           <div className="mt-4 flex space-x-1 bg-gray-100 rounded-lg p-1">
@@ -225,6 +269,17 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
             >
               <YouTubeIcon className="w-4 h-4" />
               YouTube Video
+            </button>
+            <button
+              onClick={() => setActiveTab('website')}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'website'
+                  ? 'bg-white text-amber-700 shadow-sm'
+                  : 'text-gray-600 hover:text-amber-600'
+              }`}
+            >
+              <LinkIcon className="w-4 h-4" />
+              Website URL
             </button>
           </div>
         </div>
@@ -306,6 +361,56 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
                   >
                     <YouTubeIcon className="w-5 h-5" />
                     {isParsingYoutube ? 'Extracting Recipe...' : 'Extract Recipe'}
+                  </button>
+                  <button
+                    onClick={handleClear}
+                    className="px-4 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </>
+            )}
+
+            {activeTab === 'website' && (
+              <>
+                <div>
+                  <label htmlFor="website-url" className="block text-sm font-medium text-gray-700 mb-2">
+                    Recipe Website URL
+                  </label>
+                  <input
+                    id="website-url"
+                    type="url"
+                    className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition"
+                    placeholder="https://www.allrecipes.com/recipe/..."
+                    value={websiteUrl}
+                    onChange={(e) => setWebsiteUrl(e.target.value)}
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    Enter a URL from any recipe website (AllRecipes, Food Network, blogs, etc.). The recipe will be automatically extracted and parsed.
+                  </p>
+                </div>
+
+                {contentPreview && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Extracted Content Preview
+                    </label>
+                    <div className="max-h-32 overflow-y-auto p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
+                      {contentPreview.substring(0, 500)}
+                      {contentPreview.length > 500 && '...'}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleParseWebsite}
+                    disabled={isParsingWebsite || !websiteUrl.trim()}
+                    className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white font-medium py-2.5 px-4 rounded-lg shadow-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all"
+                  >
+                    <LinkIcon className="w-5 h-5" />
+                    {isParsingWebsite ? 'Extracting Recipe...' : 'Extract Recipe'}
                   </button>
                   <button
                     onClick={handleClear}
