@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { GroceryList as GroceryListType, CreateGroceryListData, NotionIngredient } from '../types';
+import IngredientSearchModal from './IngredientSearchModal';
 
 // Icon components
 const ShoppingCartIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -32,13 +33,22 @@ const CheckIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+const SearchIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8"></circle>
+    <line x1="21" y1="21" x2="16.5" y2="16.5"></line>
+  </svg>
+);
+
 interface GroceryListCardProps {
   groceryList: GroceryListType;
   onUpdate: (id: string, data: any) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onAddIngredient: (listId: string, listName: string) => void;
+  onRemoveIngredient: (listId: string, ingredientId: string) => Promise<void>;
 }
 
-const GroceryListCard: React.FC<GroceryListCardProps> = ({ groceryList, onUpdate, onDelete }) => {
+const GroceryListCard: React.FC<GroceryListCardProps> = ({ groceryList, onUpdate, onDelete, onAddIngredient, onRemoveIngredient }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [ingredients, setIngredients] = useState<NotionIngredient[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -120,6 +130,13 @@ const GroceryListCard: React.FC<GroceryListCardProps> = ({ groceryList, onUpdate
               <option value="Archived">Archived</option>
             </select>
             <button
+              onClick={() => onAddIngredient(groceryList.id, groceryList.name)}
+              className="text-amber-600 hover:text-amber-700 p-1"
+              title="Add ingredient"
+            >
+              <PlusIcon className="w-4 h-4" />
+            </button>
+            <button
               onClick={() => onDelete(groceryList.id)}
               className="text-red-500 hover:text-red-700 p-1"
               title="Delete list"
@@ -157,17 +174,29 @@ const GroceryListCard: React.FC<GroceryListCardProps> = ({ groceryList, onUpdate
               <h4 className="font-medium text-gray-900 mb-3">List Items:</h4>
               {ingredients.map((ingredient) => (
                 <div key={ingredient.id} className="flex items-center justify-between py-2 px-3 bg-white rounded-lg">
-                  <span className="text-gray-800">{ingredient.name}</span>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-3">
+                    <span className="text-gray-800">{ingredient.name}</span>
                     {ingredient.inPantry && (
                       <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
                         In Pantry
                       </span>
                     )}
+                  </div>
+                  <div className="flex items-center space-x-2">
                     <input
                       type="checkbox"
                       className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
                     />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveIngredient(groceryList.id, ingredient.id);
+                      }}
+                      className="text-red-500 hover:text-red-700 p-1"
+                      title="Remove ingredient"
+                    >
+                      <TrashIcon className="w-3 h-3" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -279,6 +308,9 @@ const GroceryList: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showIngredientModal, setShowIngredientModal] = useState(false);
+  const [targetListId, setTargetListId] = useState<string | undefined>();
+  const [targetListName, setTargetListName] = useState<string | undefined>();
   const [filter, setFilter] = useState<'All' | 'Active' | 'Completed' | 'Archived'>('All');
 
   const loadGroceryLists = async () => {
@@ -345,6 +377,56 @@ const GroceryList: React.FC = () => {
     await loadGroceryLists(); // Reload the list
   };
 
+  const handleAddIngredient = (listId: string, listName: string) => {
+    setTargetListId(listId);
+    setTargetListName(listName);
+    setShowIngredientModal(true);
+  };
+
+  const handleAddIngredientGeneric = () => {
+    setTargetListId(undefined);
+    setTargetListName(undefined);
+    setShowIngredientModal(true);
+  };
+
+  const addIngredientsToList = async (ingredientIds: string[], targetListId?: string) => {
+    if (!targetListId) return;
+
+    const response = await fetch(`/api/notion/grocery-lists/${targetListId}/items`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ingredientIds }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to add ingredients to list');
+    }
+
+    await loadGroceryLists(); // Reload the lists
+  };
+
+  const removeIngredientFromList = async (listId: string, ingredientId: string) => {
+    if (!confirm('Are you sure you want to remove this ingredient from the list?')) {
+      return;
+    }
+
+    const response = await fetch(`/api/notion/grocery-lists/${listId}/items`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ingredientIds: [ingredientId] }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to remove ingredient from list');
+    }
+
+    await loadGroceryLists(); // Reload the lists
+  };
+
   useEffect(() => {
     loadGroceryLists();
   }, []);
@@ -373,13 +455,22 @@ const GroceryList: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900">Custom Lists</h1>
             <p className="mt-2 text-gray-600">Create themed lists for special occasions, recipes, or meal planning</p>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center space-x-2 bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors"
-          >
-            <PlusIcon className="w-5 h-5" />
-            <span>New Custom List</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleAddIngredientGeneric}
+              className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <SearchIcon className="w-5 h-5" />
+              <span>Add Ingredient</span>
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center space-x-2 bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors"
+            >
+              <PlusIcon className="w-5 h-5" />
+              <span>New Custom List</span>
+            </button>
+          </div>
         </div>
 
         {/* Filter buttons */}
@@ -427,6 +518,8 @@ const GroceryList: React.FC = () => {
               groceryList={list}
               onUpdate={updateGroceryList}
               onDelete={deleteGroceryList}
+              onAddIngredient={handleAddIngredient}
+              onRemoveIngredient={removeIngredientFromList}
             />
           ))}
         </div>
@@ -436,6 +529,15 @@ const GroceryList: React.FC = () => {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreate={createGroceryList}
+      />
+
+      <IngredientSearchModal
+        isOpen={showIngredientModal}
+        onClose={() => setShowIngredientModal(false)}
+        onAddToList={addIngredientsToList}
+        targetListId={targetListId}
+        targetListName={targetListName}
+        groceryLists={groceryLists.filter(list => list.status === 'Active')}
       />
     </div>
   );
