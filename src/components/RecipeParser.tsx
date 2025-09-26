@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { parseRecipeText, validateParsedRecipe, type ParsedRecipe, type ParsingResult } from '../services/aiParsingService';
 import { notionService, type CreateRecipeData } from '../services/notionService.client';
+import { extractRecipeFromYouTubeVideo, validateRecipeContent, type YoutubeRecipeResult } from '../services/youtubeRecipeService';
 
 const ClipboardIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -46,19 +47,36 @@ const UsersIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+const YouTubeIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+  </svg>
+);
+
+const LinkIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"/>
+    <line x1="8" y1="12" x2="16" y2="12"/>
+  </svg>
+);
+
 interface RecipeParserProps {
   onClose: () => void;
 }
 
 const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
+  const [activeTab, setActiveTab] = useState<'text' | 'youtube'>('text');
   const [recipeText, setRecipeText] = useState('');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
   const [parsedRecipe, setParsedRecipe] = useState<ParsedRecipe | null>(null);
   const [isParsingText, setIsParsingText] = useState(false);
+  const [isParsingYoutube, setIsParsingYoutube] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [savingError, setSavingError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [transcriptPreview, setTranscriptPreview] = useState<string>('');
 
   const handleParseRecipe = async () => {
     if (!recipeText.trim()) {
@@ -71,6 +89,7 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
     setParsedRecipe(null);
     setValidationErrors([]);
     setSaveSuccess(false);
+    setTranscriptPreview('');
 
     try {
       const result: ParsingResult = await parseRecipeText(recipeText);
@@ -86,6 +105,37 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
       setParsingError(error instanceof Error ? error.message : 'An unknown error occurred while parsing');
     } finally {
       setIsParsingText(false);
+    }
+  };
+
+  const handleParseYoutube = async () => {
+    if (!youtubeUrl.trim()) {
+      setParsingError('Please enter a YouTube URL.');
+      return;
+    }
+
+    setIsParsingYoutube(true);
+    setParsingError(null);
+    setParsedRecipe(null);
+    setValidationErrors([]);
+    setSaveSuccess(false);
+    setTranscriptPreview('');
+
+    try {
+      const result: YoutubeRecipeResult = await extractRecipeFromYouTubeVideo(youtubeUrl);
+
+      if (result.success && result.recipe) {
+        const validation = validateParsedRecipe(result.recipe);
+        setValidationErrors(validation.errors);
+        setParsedRecipe(result.recipe);
+        setTranscriptPreview(result.transcript || '');
+      } else {
+        setParsingError(result.error || 'Failed to extract recipe from YouTube video');
+      }
+    } catch (error) {
+      setParsingError(error instanceof Error ? error.message : 'An unknown error occurred while parsing YouTube video');
+    } finally {
+      setIsParsingYoutube(false);
     }
   };
 
@@ -128,11 +178,13 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
 
   const handleClear = () => {
     setRecipeText('');
+    setYoutubeUrl('');
     setParsedRecipe(null);
     setParsingError(null);
     setSavingError(null);
     setSaveSuccess(false);
     setValidationErrors([]);
+    setTranscriptPreview('');
   };
 
   return (
@@ -140,7 +192,7 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold font-serif text-amber-800">Recipe Parser</h2>
+            <h2 className="text-2xl font-bold font-serif text-amber-800">Add recipe</h2>
             <button
               onClick={onClose}
               className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
@@ -148,42 +200,122 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
               <XIcon className="w-6 h-6" />
             </button>
           </div>
-          <p className="mt-2 text-gray-600">Paste your recipe text and save it to your personal Notion database.</p>
+          <p className="mt-2 text-gray-600">Parse recipes from text or YouTube videos and save to your Notion database.</p>
+
+          {/* Tabs */}
+          <div className="mt-4 flex space-x-1 bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setActiveTab('text')}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'text'
+                  ? 'bg-white text-amber-700 shadow-sm'
+                  : 'text-gray-600 hover:text-amber-600'
+              }`}
+            >
+              <ClipboardIcon className="w-4 h-4" />
+              Recipe Text
+            </button>
+            <button
+              onClick={() => setActiveTab('youtube')}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'youtube'
+                  ? 'bg-white text-amber-700 shadow-sm'
+                  : 'text-gray-600 hover:text-amber-600'
+              }`}
+            >
+              <YouTubeIcon className="w-4 h-4" />
+              YouTube Video
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
           {/* Input Section */}
           <div className="space-y-4">
-            <div>
-              <label htmlFor="recipe-text" className="block text-sm font-medium text-gray-700 mb-2">
-                Recipe Text
-              </label>
-              <textarea
-                id="recipe-text"
-                rows={12}
-                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition resize-none"
-                placeholder="Paste your recipe here... Include the recipe name, ingredients, and instructions."
-                value={recipeText}
-                onChange={(e) => setRecipeText(e.target.value)}
-              />
-            </div>
+            {activeTab === 'text' && (
+              <>
+                <div>
+                  <label htmlFor="recipe-text" className="block text-sm font-medium text-gray-700 mb-2">
+                    Recipe Text
+                  </label>
+                  <textarea
+                    id="recipe-text"
+                    rows={12}
+                    className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition resize-none"
+                    placeholder="Paste your recipe here... Include the recipe name, ingredients, and instructions."
+                    value={recipeText}
+                    onChange={(e) => setRecipeText(e.target.value)}
+                  />
+                </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={handleParseRecipe}
-                disabled={isParsingText || !recipeText.trim()}
-                className="flex-1 flex items-center justify-center gap-2 bg-amber-600 text-white font-medium py-2.5 px-4 rounded-lg shadow-md hover:bg-amber-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all"
-              >
-                <ClipboardIcon className="w-5 h-5" />
-                {isParsingText ? 'Parsing...' : 'Parse Recipe'}
-              </button>
-              <button
-                onClick={handleClear}
-                className="px-4 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                Clear
-              </button>
-            </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleParseRecipe}
+                    disabled={isParsingText || !recipeText.trim()}
+                    className="flex-1 flex items-center justify-center gap-2 bg-amber-600 text-white font-medium py-2.5 px-4 rounded-lg shadow-md hover:bg-amber-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all"
+                  >
+                    <ClipboardIcon className="w-5 h-5" />
+                    {isParsingText ? 'Parsing...' : 'Parse Recipe'}
+                  </button>
+                  <button
+                    onClick={handleClear}
+                    className="px-4 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </>
+            )}
+
+            {activeTab === 'youtube' && (
+              <>
+                <div>
+                  <label htmlFor="youtube-url" className="block text-sm font-medium text-gray-700 mb-2">
+                    YouTube Video URL
+                  </label>
+                  <input
+                    id="youtube-url"
+                    type="url"
+                    className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition"
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    value={youtubeUrl}
+                    onChange={(e) => setYoutubeUrl(e.target.value)}
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    Enter a YouTube video URL containing a cooking recipe. The transcript will be automatically extracted and parsed.
+                  </p>
+                </div>
+
+                {transcriptPreview && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Extracted Transcript Preview
+                    </label>
+                    <div className="max-h-32 overflow-y-auto p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
+                      {transcriptPreview.substring(0, 500)}
+                      {transcriptPreview.length > 500 && '...'}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleParseYoutube}
+                    disabled={isParsingYoutube || !youtubeUrl.trim()}
+                    className="flex-1 flex items-center justify-center gap-2 bg-red-600 text-white font-medium py-2.5 px-4 rounded-lg shadow-md hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all"
+                  >
+                    <YouTubeIcon className="w-5 h-5" />
+                    {isParsingYoutube ? 'Extracting Recipe...' : 'Extract Recipe'}
+                  </button>
+                  <button
+                    onClick={handleClear}
+                    className="px-4 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </>
+            )}
 
             {parsingError && (
               <div className="p-4 bg-red-100 border border-red-200 rounded-lg text-red-700">
