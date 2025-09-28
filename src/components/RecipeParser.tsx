@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
-import { parseRecipeText, validateParsedRecipe, type ParsedRecipe, type ParsingResult } from '../services/aiParsingService';
+import {
+  parseRecipeText,
+  validateParsedRecipe,
+  parseRecipeTextStructured,
+  validateStructuredRecipe,
+  type ParsedRecipe,
+  type ParsingResult,
+  type StructuredParsingResult
+} from '../services/aiParsingService';
 import { notionService, type CreateRecipeData } from '../services/notionService.client';
 import { extractRecipeFromYouTubeVideo, validateRecipeContent, type YoutubeRecipeResult } from '../services/youtubeRecipeService';
 import { extractRecipeFromWebsite, isValidWebsiteUrl, type WebsiteRecipeResult } from '../services/websiteRecipeService';
+import { ParsedRecipeData } from '../types';
 
 const ClipboardIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -71,6 +80,8 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [parsedRecipe, setParsedRecipe] = useState<ParsedRecipe | null>(null);
+  const [structuredRecipe, setStructuredRecipe] = useState<ParsedRecipeData | null>(null);
+  const [useStructuredParsing, setUseStructuredParsing] = useState(true);
   const [isParsingText, setIsParsingText] = useState(false);
   const [isParsingYoutube, setIsParsingYoutube] = useState(false);
   const [isParsingWebsite, setIsParsingWebsite] = useState(false);
@@ -88,22 +99,51 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
       return;
     }
 
+    console.log('🚀 Starting recipe parsing with mode:', useStructuredParsing ? 'Structured' : 'Legacy');
+    console.log('📝 Original recipe text:', recipeText);
+
     setIsParsingText(true);
     setParsingError(null);
     setParsedRecipe(null);
+    setStructuredRecipe(null);
     setValidationErrors([]);
     setSaveSuccess(false);
     setTranscriptPreview('');
 
     try {
-      const result: ParsingResult = await parseRecipeText(recipeText);
+      if (useStructuredParsing) {
+        const result: StructuredParsingResult = await parseRecipeTextStructured(recipeText);
 
-      if (result.success && result.data) {
-        const validation = validateParsedRecipe(result.data);
-        setValidationErrors(validation.errors);
-        setParsedRecipe(result.data);
+        if (result.success && result.data) {
+          const validation = validateStructuredRecipe(result.data);
+          setValidationErrors(validation.errors);
+          setStructuredRecipe(result.data);
+
+          // Log quantity preservation results
+          const totalIngredients = result.data.ingredients.length;
+          const ingredientsWithQuantities = result.data.ingredients.filter(ing =>
+            ing.quantity && ing.quantity.trim() !== '' && ing.quantity !== '1'
+          ).length;
+
+          console.log(`📊 Quantity preservation: ${ingredientsWithQuantities}/${totalIngredients} ingredients have proper quantities`);
+
+          if (ingredientsWithQuantities < totalIngredients) {
+            console.warn('⚠️ Some ingredients may be missing specific quantities - check the validation warnings');
+          }
+        } else {
+          setParsingError(result.error || 'Failed to parse recipe text');
+        }
       } else {
-        setParsingError(result.error || 'Failed to parse recipe text');
+        console.warn('⚠️ Using legacy parsing - all quantities will be lost!');
+        const result: ParsingResult = await parseRecipeText(recipeText);
+
+        if (result.success && result.data) {
+          const validation = validateParsedRecipe(result.data);
+          setValidationErrors(validation.errors);
+          setParsedRecipe(result.data);
+        } else {
+          setParsingError(result.error || 'Failed to parse recipe text');
+        }
       }
     } catch (error) {
       setParsingError(error instanceof Error ? error.message : 'An unknown error occurred while parsing');
@@ -118,9 +158,12 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
       return;
     }
 
+    console.log('🚀 Starting YouTube parsing with mode:', useStructuredParsing ? 'Structured' : 'Legacy');
+
     setIsParsingYoutube(true);
     setParsingError(null);
     setParsedRecipe(null);
+    setStructuredRecipe(null);
     setValidationErrors([]);
     setSaveSuccess(false);
     setTranscriptPreview('');
@@ -130,10 +173,31 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
       const result: YoutubeRecipeResult = await extractRecipeFromYouTubeVideo(youtubeUrl);
 
       if (result.success && result.recipe) {
-        const validation = validateParsedRecipe(result.recipe);
-        setValidationErrors(validation.errors);
-        setParsedRecipe(result.recipe);
         setTranscriptPreview(result.transcript || '');
+
+        if (useStructuredParsing) {
+          // Use the ORIGINAL transcript for structured parsing instead of the cleaned ingredient names
+          console.log('🔄 Converting YouTube recipe to structured format using original transcript');
+          console.log('📝 Using transcript for structured parsing:', result.transcript?.substring(0, 500) + '...');
+
+          const structuredResult = await parseRecipeTextStructured(result.transcript || '');
+
+          if (structuredResult.success && structuredResult.data) {
+            const validation = validateStructuredRecipe(structuredResult.data);
+            setValidationErrors(validation.errors);
+            setStructuredRecipe(structuredResult.data);
+          } else {
+            console.warn('⚠️ Structured parsing failed, falling back to legacy format');
+            const validation = validateParsedRecipe(result.recipe);
+            setValidationErrors(validation.errors);
+            setParsedRecipe(result.recipe);
+          }
+        } else {
+          console.warn('⚠️ Using legacy YouTube parsing - quantities will be lost!');
+          const validation = validateParsedRecipe(result.recipe);
+          setValidationErrors(validation.errors);
+          setParsedRecipe(result.recipe);
+        }
       } else {
         setParsingError(result.error || 'Failed to extract recipe from YouTube video');
       }
@@ -155,9 +219,12 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
       return;
     }
 
+    console.log('🚀 Starting website parsing with mode:', useStructuredParsing ? 'Structured' : 'Legacy');
+
     setIsParsingWebsite(true);
     setParsingError(null);
     setParsedRecipe(null);
+    setStructuredRecipe(null);
     setValidationErrors([]);
     setSaveSuccess(false);
     setTranscriptPreview('');
@@ -167,10 +234,41 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
       const result: WebsiteRecipeResult = await extractRecipeFromWebsite(websiteUrl);
 
       if (result.success && result.recipe) {
-        const validation = validateParsedRecipe(result.recipe);
-        setValidationErrors(validation.errors);
-        setParsedRecipe(result.recipe);
         setContentPreview(result.content || '');
+
+        if (useStructuredParsing) {
+          // Convert legacy recipe to structured format using AI parsing
+          const recipeText = `Recipe: ${result.recipe.recipeName}
+
+Prep Time: ${result.recipe.prepTime}
+Cook Time: ${result.recipe.cookTime}
+Servings: ${result.recipe.servings}
+
+Ingredients:
+${result.recipe.cleanIngredientNames.join('\n')}
+
+Instructions:
+${result.recipe.instructions.join('\n')}`;
+
+          console.log('🔄 Converting website recipe to structured format');
+          const structuredResult = await parseRecipeTextStructured(recipeText);
+
+          if (structuredResult.success && structuredResult.data) {
+            const validation = validateStructuredRecipe(structuredResult.data);
+            setValidationErrors(validation.errors);
+            setStructuredRecipe(structuredResult.data);
+          } else {
+            console.warn('⚠️ Structured parsing failed, falling back to legacy format');
+            const validation = validateParsedRecipe(result.recipe);
+            setValidationErrors(validation.errors);
+            setParsedRecipe(result.recipe);
+          }
+        } else {
+          console.warn('⚠️ Using legacy website parsing - quantities will be lost!');
+          const validation = validateParsedRecipe(result.recipe);
+          setValidationErrors(validation.errors);
+          setParsedRecipe(result.recipe);
+        }
       } else {
         setParsingError(result.error || 'Failed to extract recipe from website');
       }
@@ -182,7 +280,7 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
   };
 
   const handleSaveRecipe = async () => {
-    if (!parsedRecipe) return;
+    if (!parsedRecipe && !structuredRecipe) return;
 
     if (validationErrors.length > 0) {
       setSavingError('Please fix validation errors before saving');
@@ -194,16 +292,38 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
     setSaveSuccess(false);
 
     try {
-      const createRecipeData: CreateRecipeData = {
-        recipeName: parsedRecipe.recipeName,
-        instructions: parsedRecipe.instructions.join('\n'),
-        prepTime: parsedRecipe.prepTime,
-        cookTime: parsedRecipe.cookTime,
-        servings: parsedRecipe.servings.toString(),
-        ingredientNames: parsedRecipe.cleanIngredientNames,
-      };
+      if (structuredRecipe) {
+        // Use new structured format
+        const createRecipeData: CreateRecipeData = {
+          recipeName: structuredRecipe.recipeName,
+          instructions: structuredRecipe.instructions,
+          prepTime: structuredRecipe.prepTime,
+          cookTime: structuredRecipe.cookTime,
+          servings: structuredRecipe.servings,
+          ingredients: structuredRecipe.ingredients,
+        };
 
-      await notionService.createRecipe(createRecipeData);
+        await notionService.createRecipe(createRecipeData);
+      } else if (parsedRecipe) {
+        // Legacy format - convert to structured format
+        const ingredients = parsedRecipe.cleanIngredientNames.map(name => ({
+          cleanName: name,
+          quantity: '1', // Default quantity for legacy recipes
+          notes: undefined
+        }));
+
+        const createRecipeData: CreateRecipeData = {
+          recipeName: parsedRecipe.recipeName,
+          instructions: parsedRecipe.instructions.join('\n'),
+          prepTime: parsedRecipe.prepTime,
+          cookTime: parsedRecipe.cookTime,
+          servings: parsedRecipe.servings.toString(),
+          ingredients,
+        };
+
+        await notionService.createRecipe(createRecipeData);
+      }
+
       setSaveSuccess(true);
 
       // Auto-hide success message after 5 seconds but keep form data
@@ -223,6 +343,7 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
     setYoutubeUrl('');
     setWebsiteUrl('');
     setParsedRecipe(null);
+    setStructuredRecipe(null);
     setParsingError(null);
     setSavingError(null);
     setSaveSuccess(false);
@@ -245,6 +366,33 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
             </button>
           </div>
           <p className="mt-2 text-gray-600">Parse recipes from text, YouTube videos, or website URLs and save to your Notion database.</p>
+
+          {/* Parsing Mode Toggle */}
+          <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={useStructuredParsing}
+                onChange={(e) => setUseStructuredParsing(e.target.checked)}
+                className="mt-1 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+              />
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-amber-800">
+                  🎯 Structured Parsing (Recommended)
+                </label>
+                <p className="mt-1 text-xs text-amber-700">
+                  Preserves ingredient quantities and measurements (e.g., "700g carne de pui", "2 morcovi", "300g smântână").
+                  <br />
+                  <strong>Essential for non-English recipes</strong> and accurate recipe scaling.
+                </p>
+                {!useStructuredParsing && (
+                  <div className="mt-2 p-2 bg-yellow-100 border border-yellow-300 rounded text-xs text-yellow-800">
+                    ⚠️ Legacy mode will lose all ingredient quantities! Enable structured parsing to preserve measurements.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* Tabs */}
           <div className="mt-4 flex space-x-1 bg-gray-100 rounded-lg p-1">
@@ -344,12 +492,14 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
                 {transcriptPreview && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Extracted Transcript Preview
+                      Full Extracted Transcript ({transcriptPreview.length} characters)
                     </label>
-                    <div className="max-h-32 overflow-y-auto p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
-                      {transcriptPreview.substring(0, 500)}
-                      {transcriptPreview.length > 500 && '...'}
+                    <div className="max-h-64 overflow-y-auto p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
+                      <div className="whitespace-pre-wrap">{transcriptPreview}</div>
                     </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      📊 Full transcript shown for debugging. Check for ingredient quantities and language accuracy.
+                    </p>
                   </div>
                 )}
 
@@ -394,12 +544,14 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
                 {contentPreview && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Extracted Content Preview
+                      Full Extracted Content ({contentPreview.length} characters)
                     </label>
-                    <div className="max-h-32 overflow-y-auto p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
-                      {contentPreview.substring(0, 500)}
-                      {contentPreview.length > 500 && '...'}
+                    <div className="max-h-64 overflow-y-auto p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
+                      <div className="whitespace-pre-wrap">{contentPreview}</div>
                     </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      📊 Full content shown for debugging. Check for ingredient quantities and recipe structure.
+                    </p>
                   </div>
                 )}
 
@@ -446,59 +598,124 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Parsed Preview</h3>
 
-            {!parsedRecipe && (
+            {!parsedRecipe && !structuredRecipe && (
               <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-lg">
                 <ClipboardIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
                 <p>Parsed recipe data will appear here</p>
               </div>
             )}
 
-            {parsedRecipe && (
+            {(parsedRecipe || structuredRecipe) && (
               <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-6">
                 <div>
-                  <h4 className="text-xl font-bold text-amber-900">{parsedRecipe.recipeName}</h4>
+                  <h4 className="text-xl font-bold text-amber-900">
+                    {structuredRecipe?.recipeName || parsedRecipe?.recipeName}
+                  </h4>
+                  {structuredRecipe && (
+                    <span className="inline-block mt-1 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+                      Structured format with quantities
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap gap-3 text-sm">
                   <div className="flex items-center gap-2 bg-amber-100 p-2 rounded-full">
                     <ClockIcon className="w-4 h-4 text-amber-600" />
-                    <strong>Prep:</strong> {parsedRecipe.prepTime}
+                    <strong>Prep:</strong> {structuredRecipe?.prepTime || parsedRecipe?.prepTime}
                   </div>
                   <div className="flex items-center gap-2 bg-amber-100 p-2 rounded-full">
                     <ClockIcon className="w-4 h-4 text-amber-600" />
-                    <strong>Cook:</strong> {parsedRecipe.cookTime}
+                    <strong>Cook:</strong> {structuredRecipe?.cookTime || parsedRecipe?.cookTime}
                   </div>
                   <div className="flex items-center gap-2 bg-amber-100 p-2 rounded-full">
                     <UsersIcon className="w-4 h-4 text-amber-600" />
-                    <strong>Servings:</strong> {parsedRecipe.servings}
+                    <strong>Servings:</strong> {structuredRecipe?.servings || parsedRecipe?.servings}
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   <div>
                     <h5 className="font-medium text-amber-800 border-b border-amber-200 pb-1">Ingredients</h5>
-                    <ul className="mt-2 space-y-1 text-sm">
-                      {parsedRecipe.cleanIngredientNames.map((ingredient, index) => (
-                        <li key={index} className="flex items-start gap-2">
-                          <span className="w-1.5 h-1.5 bg-amber-400 rounded-full mt-2 flex-shrink-0"></span>
-                          {ingredient}
-                        </li>
-                      ))}
+                    <ul className="mt-2 space-y-2 text-sm">
+                      {structuredRecipe ? (
+                        structuredRecipe.ingredients.map((ingredient, index) => {
+                          // Smarter validation - "1" is valid for countable items, "Not specified" is not
+                          const hasProperQuantity = ingredient.quantity &&
+                            ingredient.quantity.trim() !== '' &&
+                            ingredient.quantity.toLowerCase() !== 'not specified' &&
+                            ingredient.quantity.toLowerCase() !== 'sufficient' &&
+                            ingredient.quantity.toLowerCase() !== 'to taste';
+
+                          const quantityStyle = hasProperQuantity
+                            ? "text-green-700 font-semibold"
+                            : "text-red-600 font-semibold";
+
+                          return (
+                            <li key={index} className="flex items-start gap-3 p-2 bg-amber-50 rounded border-l-4 border-amber-300">
+                              <span className={`w-1.5 h-1.5 rounded-full mt-2 flex-shrink-0 ${hasProperQuantity ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                              <div className="flex-1">
+                                <div className="font-medium text-amber-900">
+                                  <span className={quantityStyle}>
+                                    {ingredient.quantity || '❌ Missing'}
+                                  </span>
+                                  <span className="mx-1">×</span>
+                                  <span>{ingredient.cleanName}</span>
+                                </div>
+                                {ingredient.notes && (
+                                  <div className="text-xs text-amber-700 italic">
+                                    📝 {ingredient.notes}
+                                  </div>
+                                )}
+                                {!hasProperQuantity && (
+                                  <div className="text-xs text-red-600 mt-1">
+                                    ⚠️ Quantity may be missing or incomplete (got: "{ingredient.quantity}")
+                                  </div>
+                                )}
+                              </div>
+                            </li>
+                          );
+                        })
+                      ) : parsedRecipe ? (
+                        <div>
+                          <div className="mb-2 p-2 bg-yellow-100 border border-yellow-300 rounded text-xs text-yellow-800">
+                            ⚠️ Legacy format - quantities not preserved
+                          </div>
+                          {parsedRecipe.cleanIngredientNames.map((ingredient, index) => (
+                            <li key={index} className="flex items-start gap-2 mb-1">
+                              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0"></span>
+                              <span className="text-gray-600">1 × {ingredient}</span>
+                            </li>
+                          ))}
+                        </div>
+                      ) : null}
                     </ul>
                   </div>
 
                   <div>
                     <h5 className="font-medium text-amber-800 border-b border-amber-200 pb-1">Instructions</h5>
-                    <ol className="mt-2 space-y-2 text-sm">
-                      {parsedRecipe.instructions.map((step, index) => (
-                        <li key={index} className="flex gap-3">
-                          <span className="flex-shrink-0 w-6 h-6 bg-amber-100 text-amber-800 rounded-full flex items-center justify-center text-xs font-medium">
-                            {index + 1}
-                          </span>
-                          <span className="flex-1">{step}</span>
-                        </li>
-                      ))}
-                    </ol>
+                    {structuredRecipe ? (
+                      <ol className="mt-2 space-y-2 text-sm">
+                        {structuredRecipe.instructions.split('\n').filter(step => step.trim()).map((step, index) => (
+                          <li key={index} className="flex gap-3">
+                            <span className="flex-shrink-0 w-6 h-6 bg-amber-100 text-amber-800 rounded-full flex items-center justify-center text-xs font-medium">
+                              {index + 1}
+                            </span>
+                            <span className="flex-1">{step.trim()}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : parsedRecipe ? (
+                      <ol className="mt-2 space-y-2 text-sm">
+                        {parsedRecipe.instructions.map((step, index) => (
+                          <li key={index} className="flex gap-3">
+                            <span className="flex-shrink-0 w-6 h-6 bg-amber-100 text-amber-800 rounded-full flex items-center justify-center text-xs font-medium">
+                              {index + 1}
+                            </span>
+                            <span className="flex-1">{step}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : null}
                   </div>
                 </div>
 
