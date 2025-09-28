@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 
 const NOTION_API_KEY = process.env.NOTION_API_KEY!;
 const RECIPES_DATABASE_ID = process.env.RECIPES_DATABASE_ID!;
+const RECIPE_INGREDIENTS_DATABASE_ID = process.env.RECIPE_INGREDIENTS_DATABASE_ID;
 
 function extractTitle(property: any): string {
   if (property?.type === "title" && property.title?.[0]?.text?.content) {
@@ -25,6 +26,50 @@ function extractRelation(property: any): string[] {
     return property.relation.map((rel: any) => rel.id);
   }
   return [];
+}
+
+async function getRecipeIngredients(recipeId: string): Promise<any[]> {
+  if (!RECIPE_INGREDIENTS_DATABASE_ID) {
+    return []; // Return empty array if junction table not configured
+  }
+
+  try {
+    const response = await fetch(`https://api.notion.com/v1/databases/${RECIPE_INGREDIENTS_DATABASE_ID}/query`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${NOTION_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Notion-Version': '2022-06-28',
+      },
+      body: JSON.stringify({
+        filter: {
+          property: 'Recipe',
+          relation: {
+            contains: recipeId,
+          },
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn(`Failed to fetch recipe ingredients for ${recipeId}:`, response.status);
+      return [];
+    }
+
+    const data = await response.json();
+    return data.results.map((page: any) => {
+      const properties = page.properties;
+      return {
+        id: page.id,
+        ingredientId: properties.Ingredient?.relation?.[0]?.id || '',
+        quantity: extractRichText(properties.Quantity),
+        notes: extractRichText(properties.Notes) || undefined,
+      };
+    });
+  } catch (error) {
+    console.warn(`Error fetching recipe ingredients for ${recipeId}:`, error);
+    return [];
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -70,8 +115,19 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
 
-    const recipes = data.results.map((page: any) => {
+    const recipes = await Promise.all(data.results.map(async (page: any) => {
       const properties = page.properties;
+
+      // Get legacy ingredient IDs from direct relation
+      const legacyIngredientIds = extractRelation(properties["Ingredients"]);
+
+      // Get structured ingredients from junction table
+      const structuredIngredients = await getRecipeIngredients(page.id);
+
+      // If we have structured ingredients, use those, otherwise fall back to legacy
+      const ingredientIds = structuredIngredients.length > 0
+        ? structuredIngredients.map(ing => ing.ingredientId).filter(Boolean)
+        : legacyIngredientIds;
 
       return {
         id: page.id,
@@ -80,11 +136,12 @@ export async function GET(request: NextRequest) {
         prepTime: extractRichText(properties["Prep Time"]),
         cookTime: extractRichText(properties["Cook Time"]),
         servings: extractRichText(properties["Servings"]),
-        ingredientIds: extractRelation(properties["Ingredients"]),
+        ingredientIds: ingredientIds,
+        recipeIngredients: structuredIngredients, // Include structured data for new recipes
         createdTime: page.created_time,
         lastEditedTime: page.last_edited_time,
       };
-    });
+    }));
 
     return NextResponse.json({
       recipes,

@@ -60,6 +60,62 @@ export interface BulkPantryUpdateData {
   updates: PantryUpdateData[];
 }
 
+// Recipe-Ingredient Junction Table interfaces
+export interface RecipeIngredient {
+  id: string;
+  recipeId: string;
+  ingredientId: string;
+  quantity: string;
+  notes?: string;
+}
+
+export interface NotionRecipeIngredient {
+  id: string;
+  recipe: { id: string };
+  ingredient: { id: string };
+  quantity: string;
+  notes?: string;
+}
+
+export interface CreateRecipeIngredientData {
+  recipeId: string;
+  ingredientId: string;
+  quantity: string;
+  notes?: string;
+}
+
+export interface UpdateRecipeIngredientData {
+  quantity?: string;
+  notes?: string;
+}
+
+// Enhanced Recipe interface with structured ingredients
+export interface NotionRecipe {
+  id: string;
+  recipeName: string;
+  instructions: string;
+  prepTime: string;
+  cookTime: string;
+  servings: string;
+  recipeIngredients: RecipeIngredient[];
+}
+
+// AI Parsing interfaces for structured ingredient extraction
+export interface ParsedRecipeIngredient {
+  cleanName: string;
+  quantity: string;
+  notes?: string;
+}
+
+export interface ParsedRecipeData {
+  recipeName: string;
+  instructions: string;
+  prepTime: string;
+  cookTime: string;
+  servings: string;
+  ingredients: ParsedRecipeIngredient[];
+}
+
 // Recipe with ingredient availability
 export interface RecipeWithAvailability extends Recipe {
   availableIngredients: string[];

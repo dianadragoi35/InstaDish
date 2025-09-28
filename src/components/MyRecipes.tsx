@@ -12,6 +12,12 @@ interface NotionRecipe {
   cookTime: string;
   servings: string;
   ingredientIds: string[];
+  recipeIngredients?: Array<{
+    id: string;
+    ingredientId: string;
+    quantity: string;
+    notes?: string;
+  }>;
   createdTime: string;
   lastEditedTime: string;
 }
@@ -19,6 +25,8 @@ interface NotionRecipe {
 interface Ingredient {
   id: string;
   name: string;
+  quantity?: string;
+  notes?: string;
 }
 
 interface RecipesResponse {
@@ -199,7 +207,52 @@ const MyRecipes: React.FC = () => {
     }
   };
 
-  const fetchRecipeIngredients = async (ingredientIds: string[]) => {
+  const fetchRecipeIngredients = async (ingredientIds: string[], recipeIngredients?: Array<{id: string; ingredientId: string; quantity: string; notes?: string;}>) => {
+    // If we have structured ingredients, fetch their names and combine with quantities
+    if (recipeIngredients && recipeIngredients.length > 0) {
+      try {
+        setLoadingIngredients(true);
+        const uniqueIngredientIds = [...new Set(recipeIngredients.map(ri => ri.ingredientId).filter(Boolean))];
+
+        if (uniqueIngredientIds.length === 0) {
+          setRecipeIngredients([]);
+          return;
+        }
+
+        const response = await fetch('/api/notion/recipes/ingredients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ingredientIds: uniqueIngredientIds }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch ingredients');
+        }
+
+        const data = await response.json();
+
+        // Map ingredient names to recipe ingredients with quantities
+        const structuredIngredients = recipeIngredients.map(ri => {
+          const ingredient = data.ingredients.find((ing: Ingredient) => ing.id === ri.ingredientId);
+          return {
+            id: ingredient?.id || ri.ingredientId,
+            name: ingredient?.name || 'Unknown ingredient',
+            quantity: ri.quantity,
+            notes: ri.notes
+          };
+        });
+
+        setRecipeIngredients(structuredIngredients);
+      } catch (err) {
+        console.error('Error fetching structured ingredients:', err);
+        setRecipeIngredients([]);
+      } finally {
+        setLoadingIngredients(false);
+      }
+      return;
+    }
+
+    // Legacy format - just ingredient IDs
     if (!ingredientIds.length) {
       setRecipeIngredients([]);
       return;
@@ -230,7 +283,7 @@ const MyRecipes: React.FC = () => {
   // Fetch ingredients when a recipe is selected
   useEffect(() => {
     if (selectedRecipe) {
-      fetchRecipeIngredients(selectedRecipe.ingredientIds);
+      fetchRecipeIngredients(selectedRecipe.ingredientIds, selectedRecipe.recipeIngredients);
     }
   }, [selectedRecipe]);
 
@@ -285,9 +338,25 @@ const MyRecipes: React.FC = () => {
                     ))}
                   </div>
                 ) : recipeIngredients.length > 0 ? (
-                  <ul className="space-y-2 list-disc list-inside text-gray-700">
+                  <ul className="space-y-3 text-gray-700">
                     {recipeIngredients.map((ingredient) => (
-                      <li key={ingredient.id}>{ingredient.name}</li>
+                      <li key={ingredient.id} className="flex flex-col space-y-1">
+                        <div className="flex items-start">
+                          <span className="w-2 h-2 bg-amber-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                          <div className="flex-grow">
+                            {ingredient.quantity ? (
+                              <span className="font-medium text-amber-700">{ingredient.quantity}</span>
+                            ) : null}
+                            {ingredient.quantity && <span className="mx-1">of</span>}
+                            <span className="text-gray-800">{ingredient.name}</span>
+                            {ingredient.notes && (
+                              <div className="text-sm text-gray-600 italic mt-1">
+                                {ingredient.notes}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </li>
                     ))}
                   </ul>
                 ) : (
@@ -504,7 +573,9 @@ const MyRecipes: React.FC = () => {
                     </p>
                     <div className="flex gap-2 text-xs">
                       <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
-                        {recipe.ingredientIds.length} ingredients
+                        {recipe.recipeIngredients && recipe.recipeIngredients.length > 0
+                          ? recipe.recipeIngredients.length
+                          : recipe.ingredientIds.length} ingredients
                       </span>
                       {recipe.prepTime && (
                         <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
@@ -523,14 +594,18 @@ const MyRecipes: React.FC = () => {
                   <div className="space-y-3">
                     <div className="flex gap-2">
                       <AddToShoppingListButton
-                        ingredientIds={recipe.ingredientIds}
+                        ingredientIds={recipe.recipeIngredients && recipe.recipeIngredients.length > 0
+                          ? recipe.recipeIngredients.map(ri => ri.ingredientId).filter(Boolean)
+                          : recipe.ingredientIds}
                         size="sm"
                         variant="primary"
                         className="flex-1"
                         showText={false}
                       />
                       <AddToGroceryButton
-                        ingredientIds={recipe.ingredientIds}
+                        ingredientIds={recipe.recipeIngredients && recipe.recipeIngredients.length > 0
+                          ? recipe.recipeIngredients.map(ri => ri.ingredientId).filter(Boolean)
+                          : recipe.ingredientIds}
                         size="sm"
                         variant="outline"
                         className="flex-1"
