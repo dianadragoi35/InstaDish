@@ -170,33 +170,25 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
     setContentPreview('');
 
     try {
-      const result: YoutubeRecipeResult = await extractRecipeFromYouTubeVideo(youtubeUrl);
+      const result: YoutubeRecipeResult = await extractRecipeFromYouTubeVideo(youtubeUrl, useStructuredParsing);
 
-      if (result.success && result.recipe) {
+      if (result.success) {
         setTranscriptPreview(result.transcript || '');
 
-        if (useStructuredParsing) {
-          // Use the ORIGINAL transcript for structured parsing instead of the cleaned ingredient names
-          console.log('🔄 Converting YouTube recipe to structured format using original transcript');
-          console.log('📝 Using transcript for structured parsing:', result.transcript?.substring(0, 500) + '...');
-
-          const structuredResult = await parseRecipeTextStructured(result.transcript || '');
-
-          if (structuredResult.success && structuredResult.data) {
-            const validation = validateStructuredRecipe(structuredResult.data);
-            setValidationErrors(validation.errors);
-            setStructuredRecipe(structuredResult.data);
-          } else {
-            console.warn('⚠️ Structured parsing failed, falling back to legacy format');
-            const validation = validateParsedRecipe(result.recipe);
-            setValidationErrors(validation.errors);
-            setParsedRecipe(result.recipe);
-          }
-        } else {
-          console.warn('⚠️ Using legacy YouTube parsing - quantities will be lost!');
+        if (result.structuredRecipe) {
+          // Use the structured recipe directly from the YouTube service
+          console.log('✅ Got structured recipe directly from YouTube parsing');
+          const validation = validateStructuredRecipe(result.structuredRecipe);
+          setValidationErrors(validation.errors);
+          setStructuredRecipe(result.structuredRecipe);
+        } else if (result.recipe) {
+          // Use legacy recipe
+          console.log('📝 Got legacy recipe from YouTube parsing');
           const validation = validateParsedRecipe(result.recipe);
           setValidationErrors(validation.errors);
           setParsedRecipe(result.recipe);
+        } else {
+          setParsingError('No recipe data received from YouTube');
         }
       } else {
         setParsingError(result.error || 'Failed to extract recipe from YouTube video');
@@ -231,43 +223,25 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
     setContentPreview('');
 
     try {
-      const result: WebsiteRecipeResult = await extractRecipeFromWebsite(websiteUrl);
+      const result: WebsiteRecipeResult = await extractRecipeFromWebsite(websiteUrl, useStructuredParsing);
 
-      if (result.success && result.recipe) {
+      if (result.success) {
         setContentPreview(result.content || '');
 
-        if (useStructuredParsing) {
-          // Convert legacy recipe to structured format using AI parsing
-          const recipeText = `Recipe: ${result.recipe.recipeName}
-
-Prep Time: ${result.recipe.prepTime}
-Cook Time: ${result.recipe.cookTime}
-Servings: ${result.recipe.servings}
-
-Ingredients:
-${result.recipe.cleanIngredientNames.join('\n')}
-
-Instructions:
-${result.recipe.instructions.join('\n')}`;
-
-          console.log('🔄 Converting website recipe to structured format');
-          const structuredResult = await parseRecipeTextStructured(recipeText);
-
-          if (structuredResult.success && structuredResult.data) {
-            const validation = validateStructuredRecipe(structuredResult.data);
-            setValidationErrors(validation.errors);
-            setStructuredRecipe(structuredResult.data);
-          } else {
-            console.warn('⚠️ Structured parsing failed, falling back to legacy format');
-            const validation = validateParsedRecipe(result.recipe);
-            setValidationErrors(validation.errors);
-            setParsedRecipe(result.recipe);
-          }
-        } else {
-          console.warn('⚠️ Using legacy website parsing - quantities will be lost!');
+        if (result.structuredRecipe) {
+          // Use the structured recipe directly from the website service
+          console.log('✅ Got structured recipe directly from website parsing');
+          const validation = validateStructuredRecipe(result.structuredRecipe);
+          setValidationErrors(validation.errors);
+          setStructuredRecipe(result.structuredRecipe);
+        } else if (result.recipe) {
+          // Use legacy recipe
+          console.log('📝 Got legacy recipe from website parsing');
           const validation = validateParsedRecipe(result.recipe);
           setValidationErrors(validation.errors);
           setParsedRecipe(result.recipe);
+        } else {
+          setParsingError('No recipe data received from website');
         }
       } else {
         setParsingError(result.error || 'Failed to extract recipe from website');
@@ -695,25 +669,69 @@ ${result.recipe.instructions.join('\n')}`;
                     <h5 className="font-medium text-amber-800 border-b border-amber-200 pb-1">Instructions</h5>
                     {structuredRecipe ? (
                       <ol className="mt-2 space-y-2 text-sm">
-                        {structuredRecipe.instructions.split('\n').filter(step => step.trim()).map((step, index) => (
-                          <li key={index} className="flex gap-3">
-                            <span className="flex-shrink-0 w-6 h-6 bg-amber-100 text-amber-800 rounded-full flex items-center justify-center text-xs font-medium">
-                              {index + 1}
-                            </span>
-                            <span className="flex-1">{step.trim()}</span>
-                          </li>
-                        ))}
+{(() => {
+                          // Split instructions by newlines first, then by numbered patterns if needed
+                          let steps = structuredRecipe.instructions.split('\n').filter(step => step.trim());
+
+                          // If we only get one long step, try to split by numbered patterns
+                          if (steps.length === 1 && /\d+\./.test(steps[0])) {
+                            // Better regex that looks for number followed by period and space, then splits before it
+                            const text = steps[0];
+                            const splitSteps = [];
+                            let currentStep = '';
+
+                            // Split by numbers like "2.", "3.", etc but keep first step
+                            const matches = text.split(/(\d+\.\s*)/g);
+
+                            for (let i = 0; i < matches.length; i++) {
+                              const part = matches[i];
+                              if (/^\d+\.\s*$/.test(part) && i > 0) {
+                                // This is a step number, save previous step and start new one
+                                if (currentStep.trim()) {
+                                  splitSteps.push(currentStep.trim());
+                                }
+                                currentStep = part;
+                              } else {
+                                currentStep += part;
+                              }
+                            }
+
+                            // Don't forget the last step
+                            if (currentStep.trim()) {
+                              splitSteps.push(currentStep.trim());
+                            }
+
+                            steps = splitSteps.filter(step => step && step.trim() && !/^\d+\.\s*$/.test(step));
+                          }
+
+                          return steps.map((step, index) => {
+                            // Remove numbering from AI-generated instructions since CSS handles numbering
+                            const cleanStep = step.trim().replace(/^\d+\.\s*/, '');
+                            return (
+                              <li key={index} className="flex gap-3">
+                                <span className="flex-shrink-0 w-6 h-6 bg-amber-100 text-amber-800 rounded-full flex items-center justify-center text-xs font-medium">
+                                  {index + 1}
+                                </span>
+                                <span className="flex-1">{cleanStep}</span>
+                              </li>
+                            );
+                          });
+                        })()}
                       </ol>
                     ) : parsedRecipe ? (
                       <ol className="mt-2 space-y-2 text-sm">
-                        {parsedRecipe.instructions.map((step, index) => (
-                          <li key={index} className="flex gap-3">
-                            <span className="flex-shrink-0 w-6 h-6 bg-amber-100 text-amber-800 rounded-full flex items-center justify-center text-xs font-medium">
-                              {index + 1}
-                            </span>
-                            <span className="flex-1">{step}</span>
-                          </li>
-                        ))}
+                        {parsedRecipe.instructions.map((step, index) => {
+                          // Remove numbering from AI-generated instructions since CSS handles numbering
+                          const cleanStep = step.trim().replace(/^\d+\.\s*/, '');
+                          return (
+                            <li key={index} className="flex gap-3">
+                              <span className="flex-shrink-0 w-6 h-6 bg-amber-100 text-amber-800 rounded-full flex items-center justify-center text-xs font-medium">
+                                {index + 1}
+                              </span>
+                              <span className="flex-1">{cleanStep}</span>
+                            </li>
+                          );
+                        })}
                       </ol>
                     ) : null}
                   </div>
