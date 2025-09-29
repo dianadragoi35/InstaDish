@@ -1,9 +1,17 @@
 import { fetchYouTubeTranscript, cleanTranscriptForRecipe, isValidYouTubeUrl } from './youtubeTranscriptService';
-import { parseRecipeText, ParsedRecipe, ParsingResult } from './aiParsingService';
+import {
+  parseRecipeText,
+  parseRecipeTextStructured,
+  ParsedRecipe,
+  ParsingResult,
+  StructuredParsingResult
+} from './aiParsingService';
+import { ParsedRecipeData } from '../types';
 
 export interface YoutubeRecipeResult {
     success: boolean;
     recipe?: ParsedRecipe;
+    structuredRecipe?: ParsedRecipeData;
     transcript?: string;
     error?: string;
     videoId?: string;
@@ -12,7 +20,7 @@ export interface YoutubeRecipeResult {
 /**
  * Extract recipe from YouTube video by fetching transcript and parsing with AI
  */
-export const extractRecipeFromYouTubeVideo = async (youtubeUrl: string): Promise<YoutubeRecipeResult> => {
+export const extractRecipeFromYouTubeVideo = async (youtubeUrl: string, useStructuredParsing: boolean = true): Promise<YoutubeRecipeResult> => {
     // Validate YouTube URL
     if (!isValidYouTubeUrl(youtubeUrl)) {
         return {
@@ -43,23 +51,56 @@ export const extractRecipeFromYouTubeVideo = async (youtubeUrl: string): Promise
         }
 
         // Step 3: Parse transcript with AI to extract recipe
-        const parsingResult: ParsingResult = await parseRecipeText(cleanedTranscript);
+        if (useStructuredParsing) {
+            console.log('🔍 Using structured parsing for YouTube transcript');
+            const structuredResult: StructuredParsingResult = await parseRecipeTextStructured(cleanedTranscript);
 
-        if (!parsingResult.success || !parsingResult.data) {
+            if (structuredResult.success && structuredResult.data) {
+                return {
+                    success: true,
+                    structuredRecipe: structuredResult.data,
+                    transcript: cleanedTranscript,
+                    videoId: youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1]
+                };
+            } else {
+                // Fall back to legacy parsing if structured fails
+                console.warn('⚠️ Structured parsing failed, falling back to legacy parsing');
+                const legacyResult: ParsingResult = await parseRecipeText(cleanedTranscript);
+
+                if (legacyResult.success && legacyResult.data) {
+                    return {
+                        success: true,
+                        recipe: legacyResult.data,
+                        transcript: cleanedTranscript,
+                        videoId: youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1]
+                    };
+                } else {
+                    return {
+                        success: false,
+                        transcript: cleanedTranscript,
+                        error: legacyResult.error || "Failed to extract recipe from transcript"
+                    };
+                }
+            }
+        } else {
+            console.log('🔍 Using legacy parsing for YouTube transcript');
+            const parsingResult: ParsingResult = await parseRecipeText(cleanedTranscript);
+
+            if (!parsingResult.success || !parsingResult.data) {
+                return {
+                    success: false,
+                    transcript: cleanedTranscript,
+                    error: parsingResult.error || "Failed to extract recipe from transcript"
+                };
+            }
+
             return {
-                success: false,
+                success: true,
+                recipe: parsingResult.data,
                 transcript: cleanedTranscript,
-                error: parsingResult.error || "Failed to extract recipe from transcript"
+                videoId: youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1]
             };
         }
-
-        // Step 4: Return successful result
-        return {
-            success: true,
-            recipe: parsingResult.data,
-            transcript: cleanedTranscript,
-            videoId: youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1]
-        };
 
     } catch (error) {
         return {

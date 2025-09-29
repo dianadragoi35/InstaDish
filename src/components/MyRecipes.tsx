@@ -371,16 +371,56 @@ const MyRecipes: React.FC = () => {
                 </h2>
                 {selectedRecipe.instructions ? (
                   <ol className="space-y-3 list-none">
-                    {selectedRecipe.instructions.split('\n').filter(step => step.trim()).map((step, index) => (
-                      <li key={index} className="flex items-start gap-3">
-                        <span className="flex-shrink-0 w-6 h-6 bg-amber-600 text-white text-sm font-bold rounded-full flex items-center justify-center">
-                          {index + 1}
-                        </span>
-                        <span className="text-gray-800 leading-relaxed">
-                          {step.trim()}
-                        </span>
-                      </li>
-                    ))}
+{(() => {
+                      // Split instructions by newlines first, then by numbered patterns if needed
+                      let steps = selectedRecipe.instructions.split('\n').filter(step => step.trim());
+
+                      // If we only get one long step, try to split by numbered patterns
+                      if (steps.length === 1 && /\d+\./.test(steps[0])) {
+                        // Better regex that looks for number followed by period and space, then splits before it
+                        const text = steps[0];
+                        const splitSteps = [];
+                        let currentStep = '';
+
+                        // Split by numbers like "2.", "3.", etc but keep first step
+                        const matches = text.split(/(\d+\.\s*)/g);
+
+                        for (let i = 0; i < matches.length; i++) {
+                          const part = matches[i];
+                          if (/^\d+\.\s*$/.test(part) && i > 0) {
+                            // This is a step number, save previous step and start new one
+                            if (currentStep.trim()) {
+                              splitSteps.push(currentStep.trim());
+                            }
+                            currentStep = part;
+                          } else {
+                            currentStep += part;
+                          }
+                        }
+
+                        // Don't forget the last step
+                        if (currentStep.trim()) {
+                          splitSteps.push(currentStep.trim());
+                        }
+
+                        steps = splitSteps.filter(step => step && step.trim() && !/^\d+\.\s*$/.test(step));
+                      }
+
+                      return steps.map((step, index) => {
+                        // Remove numbering from AI-generated instructions since CSS handles numbering
+                        const cleanStep = step.trim().replace(/^\d+\.\s*/, '');
+                        return (
+                          <li key={index} className="flex items-start gap-3">
+                            <span className="flex-shrink-0 w-6 h-6 bg-amber-600 text-white text-sm font-bold rounded-full flex items-center justify-center">
+                              {index + 1}
+                            </span>
+                            <span className="text-gray-800 leading-relaxed">
+                              {cleanStep}
+                            </span>
+                          </li>
+                        );
+                      });
+                    })()}
                   </ol>
                 ) : (
                   <p className="text-gray-800">No instructions provided.</p>

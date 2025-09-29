@@ -1,8 +1,16 @@
-import { parseRecipeText, ParsedRecipe, ParsingResult } from './aiParsingService';
+import {
+  parseRecipeText,
+  parseRecipeTextStructured,
+  ParsedRecipe,
+  ParsingResult,
+  StructuredParsingResult
+} from './aiParsingService';
+import { ParsedRecipeData } from '../types';
 
 export interface WebsiteRecipeResult {
     success: boolean;
     recipe?: ParsedRecipe;
+    structuredRecipe?: ParsedRecipeData;
     content?: string;
     error?: string;
     url?: string;
@@ -75,7 +83,7 @@ export const cleanContentForRecipe = (content: string): string => {
 /**
  * Extract recipe from website URL by fetching content and parsing with AI
  */
-export const extractRecipeFromWebsite = async (websiteUrl: string): Promise<WebsiteRecipeResult> => {
+export const extractRecipeFromWebsite = async (websiteUrl: string, useStructuredParsing: boolean = true): Promise<WebsiteRecipeResult> => {
     // Validate website URL
     if (!isValidWebsiteUrl(websiteUrl)) {
         return {
@@ -106,23 +114,56 @@ export const extractRecipeFromWebsite = async (websiteUrl: string): Promise<Webs
         }
 
         // Step 3: Parse content with AI to extract recipe
-        const parsingResult: ParsingResult = await parseRecipeText(cleanedContent);
+        if (useStructuredParsing) {
+            console.log('🔍 Using structured parsing for website content');
+            const structuredResult: StructuredParsingResult = await parseRecipeTextStructured(cleanedContent);
 
-        if (!parsingResult.success || !parsingResult.data) {
+            if (structuredResult.success && structuredResult.data) {
+                return {
+                    success: true,
+                    structuredRecipe: structuredResult.data,
+                    content: cleanedContent,
+                    url: websiteUrl
+                };
+            } else {
+                // Fall back to legacy parsing if structured fails
+                console.warn('⚠️ Structured parsing failed, falling back to legacy parsing');
+                const legacyResult: ParsingResult = await parseRecipeText(cleanedContent);
+
+                if (legacyResult.success && legacyResult.data) {
+                    return {
+                        success: true,
+                        recipe: legacyResult.data,
+                        content: cleanedContent,
+                        url: websiteUrl
+                    };
+                } else {
+                    return {
+                        success: false,
+                        content: cleanedContent,
+                        error: legacyResult.error || "Failed to extract recipe from website content"
+                    };
+                }
+            }
+        } else {
+            console.log('🔍 Using legacy parsing for website content');
+            const parsingResult: ParsingResult = await parseRecipeText(cleanedContent);
+
+            if (!parsingResult.success || !parsingResult.data) {
+                return {
+                    success: false,
+                    content: cleanedContent,
+                    error: parsingResult.error || "Failed to extract recipe from website content"
+                };
+            }
+
             return {
-                success: false,
+                success: true,
+                recipe: parsingResult.data,
                 content: cleanedContent,
-                error: parsingResult.error || "Failed to extract recipe from website content"
+                url: websiteUrl
             };
         }
-
-        // Step 4: Return successful result
-        return {
-            success: true,
-            recipe: parsingResult.data,
-            content: cleanedContent,
-            url: websiteUrl
-        };
 
     } catch (error) {
         return {
