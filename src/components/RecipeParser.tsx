@@ -191,7 +191,18 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
           setParsingError('No recipe data received from YouTube');
         }
       } else {
-        setParsingError(result.error || 'Failed to extract recipe from YouTube video');
+        // Provide helpful guidance for common YouTube transcript errors
+        let errorMessage = result.error || 'Failed to extract recipe from YouTube video';
+
+        if (result.error?.includes('Transcript is disabled')) {
+          errorMessage = 'This video has disabled transcripts. Try finding a cooking video that has captions enabled, or copy the recipe text manually and use the "Recipe Text" tab instead.';
+        } else if (result.error?.includes('No transcript available')) {
+          errorMessage = 'No transcript is available for this video. Try finding a cooking video with auto-generated captions, or copy the recipe text manually and use the "Recipe Text" tab.';
+        } else if (result.error?.includes('Video unavailable') || result.error?.includes('private')) {
+          errorMessage = 'This video is unavailable or private. Please check the URL and try a different cooking video.';
+        }
+
+        setParsingError(errorMessage);
       }
     } catch (error) {
       setParsingError(error instanceof Error ? error.message : 'An unknown error occurred while parsing YouTube video');
@@ -459,7 +470,7 @@ const RecipeParser: React.FC<RecipeParserProps> = ({ onClose }) => {
                     onChange={(e) => setYoutubeUrl(e.target.value)}
                   />
                   <p className="mt-2 text-xs text-gray-500">
-                    Enter a YouTube video URL containing a cooking recipe. The transcript will be automatically extracted and parsed.
+                    Enter a YouTube video URL containing a cooking recipe. <strong>Note:</strong> The video must have captions/transcripts enabled. If you get a "transcript disabled" error, try a different video or copy the recipe text manually to the "Recipe Text" tab.
                   </p>
                 </div>
 

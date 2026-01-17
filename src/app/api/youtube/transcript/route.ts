@@ -64,6 +64,12 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { youtubeUrl } = body;
 
+        console.log('🎬 YouTube Transcript API called:', {
+            url: youtubeUrl,
+            environment: process.env.NODE_ENV,
+            timestamp: new Date().toISOString()
+        });
+
         if (!youtubeUrl) {
             return NextResponse.json(
                 { success: false, error: 'YouTube URL is required' },
@@ -73,6 +79,7 @@ export async function POST(request: NextRequest) {
 
         // Extract video ID from URL
         const videoId = extractVideoId(youtubeUrl);
+        console.log('📝 Extracted video ID:', videoId);
 
         if (!videoId) {
             return NextResponse.json(
@@ -81,10 +88,15 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        console.log('🔄 Attempting to fetch transcript for video ID:', videoId);
+
         // Fetch transcript using the YouTube transcript package
         const transcriptArray = await YoutubeTranscript.fetchTranscript(videoId);
 
+        console.log('✅ Transcript fetch successful, entries count:', transcriptArray?.length);
+
         if (!transcriptArray || transcriptArray.length === 0) {
+            console.warn('⚠️ No transcript entries found for video:', videoId);
             return NextResponse.json(
                 { success: false, error: 'No transcript available for this video' },
                 { status: 404 }
@@ -94,6 +106,12 @@ export async function POST(request: NextRequest) {
         // Combine transcript entries into full text
         const rawTranscript = transcriptArray.map(entry => entry.text).join(' ');
         const cleanedTranscript = cleanTranscriptForRecipe(rawTranscript);
+
+        console.log('📊 Transcript processing complete:', {
+            rawLength: rawTranscript.length,
+            cleanedLength: cleanedTranscript.length,
+            entriesCount: transcriptArray.length
+        });
 
         // Convert to our format
         const entries: TranscriptEntry[] = transcriptArray.map(entry => ({
@@ -111,22 +129,39 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(response);
 
     } catch (error) {
-        console.error('YouTube transcript API error:', error);
+        console.error('❌ YouTube transcript API error:', error);
+        console.error('Error details:', {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
+            type: typeof error,
+            environment: process.env.NODE_ENV
+        });
 
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 
         // Handle specific error cases
-        if (errorMessage.includes('Transcript is disabled')) {
+        if (errorMessage.includes('Transcript is disabled') || errorMessage.includes('disabled')) {
+            console.warn('📺 Transcript disabled for video');
             return NextResponse.json(
                 { success: false, error: 'Transcript is disabled for this video' },
                 { status: 404 }
             );
         }
 
-        if (errorMessage.includes('Video unavailable')) {
+        if (errorMessage.includes('Video unavailable') || errorMessage.includes('unavailable')) {
+            console.warn('🚫 Video unavailable');
             return NextResponse.json(
                 { success: false, error: 'Video is unavailable or private' },
                 { status: 404 }
+            );
+        }
+
+        // Network/timeout issues common in production
+        if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT') || errorMessage.includes('ECONNRESET')) {
+            console.error('🌐 Network timeout in production');
+            return NextResponse.json(
+                { success: false, error: 'Network timeout - please try again' },
+                { status: 503 }
             );
         }
 
